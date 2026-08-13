@@ -1,0 +1,2058 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>VoIP CDR Analyzer</title>
+<script src="https://cdn.jsdelivr.net/npm/papaparse@5.5.3/papaparse.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.9/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf@3.0.2/dist/jspdf.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@5.0.2/dist/jspdf.plugin.autotable.min.js"></script>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#f5f7fa;color:#17202b;font-family:Inter,Arial,sans-serif}
+header{height:64px;background:#fff;border-bottom:1px solid #e5e9ef;display:flex;align-items:center;justify-content:space-between;padding:0 28px;position:sticky;top:0;z-index:10}
+.logo{font-weight:800;font-size:16px}.logo span{color:#667085;font-weight:500;font-size:11px;margin-left:8px}
+button,select,input{font:inherit}.btn{border:0;border-radius:8px;padding:9px 13px;cursor:pointer;font-size:12px;font-weight:700}.dark{background:#17202b;color:white}.light{background:#eef1f5;color:#344054}
+main{max-width:1400px;margin:auto;padding:25px 28px 50px}.upload{max-width:850px;margin:70px auto;text-align:center}.upload h1{font-size:42px;letter-spacing:-1.5px;margin:15px 0 8px}.upload p{color:#667085;line-height:1.6}.drop{margin-top:28px;background:white;border:1.5px dashed #b9c1cc;border-radius:16px;min-height:250px;display:flex;align-items:center;justify-content:center;flex-direction:column;cursor:pointer}.drop:hover{border-color:#17202b}.drop b{margin-top:12px}.drop small{color:#98a2b3;margin-top:6px}.error{background:#fff0ee;color:#b42318;padding:12px;border-radius:8px;margin-top:12px;font-size:12px}
+.head{display:flex;justify-content:space-between;gap:15px;align-items:end;margin-bottom:18px}.head h1{margin:5px 0;font-size:28px}.muted{color:#667085;font-size:12px}.filters{display:flex;gap:8px;align-items:center}.filters select,.mapping select,.mapping input{border:1px solid #d7dde6;border-radius:7px;background:#fff;padding:8px;font-size:11px}
+.cards{display:grid;grid-template-columns:repeat(5,1fr);gap:10px}.card{background:white;border:1px solid #e6eaf0;border-radius:11px;padding:14px}.label{font-size:10px;color:#667085}.value{font-size:21px;font-weight:800;margin-top:5px}.sub{font-size:10px;color:#667085;margin-top:3px}
+.section{background:#fff;border:1px solid #e6eaf0;border-radius:11px;margin-top:12px;overflow:hidden}.section-title{padding:13px 15px;border-bottom:1px solid #edf0f4;font-size:13px;font-weight:800;display:flex;justify-content:space-between;align-items:center}.section-body{padding:14px}
+.mapping{display:grid;grid-template-columns:repeat(5,1fr);gap:10px}.mapping label{font-size:10px;color:#667085;font-weight:700;display:flex;flex-direction:column;gap:5px}
+.table-wrap{overflow:auto}.table{width:100%;border-collapse:collapse;min-width:650px}.table th{font-size:9px;color:#667085;background:#f8f9fb;text-align:left;text-transform:uppercase;padding:9px 11px}.table td{font-size:11px;padding:10px 11px;border-top:1px solid #eef0f3;white-space:nowrap}.table tr:hover td{background:#fafbfc}
+.grid2{display:grid;grid-template-columns:1.35fr 1fr;gap:12px}.grid2a{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.chartbox{height:270px}.finding{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}.finding div{padding:11px;border-radius:8px;background:#f7f8fa;font-size:11px;line-height:1.45}.finding b{display:block;margin-bottom:3px}.good{border-left:3px solid #16834b}.bad{border-left:3px solid #d92d20}.warn{border-left:3px solid #b54708}
+.empty{text-align:center;color:#98a2b3;padding:25px;font-size:12px}.progress{display:none;margin-top:10px;color:#667085;font-size:12px}
+footer{display:flex;justify-content:space-between;align-items:center;margin-top:20px;color:#98a2b3;font-size:10px}
+@media(max-width:1000px){.cards{grid-template-columns:repeat(3,1fr)}.mapping{grid-template-columns:repeat(2,1fr)}.grid2,.grid2a{grid-template-columns:1fr}.finding{grid-template-columns:1fr}}
+@media(max-width:600px){header{padding:0 15px}.logo span{display:none}main{padding:18px 13px}.head{flex-direction:column;align-items:stretch}.filters{flex-wrap:wrap}.cards{grid-template-columns:1fr 1fr}.mapping{grid-template-columns:1fr}.upload{margin:45px auto}.upload h1{font-size:33px}footer{flex-direction:column;align-items:flex-start;gap:10px}}
+
+body.dark-mode{background:#0d1117;color:#e6edf3}
+body.dark-mode header{background:#111820;border-color:#222b36}
+body.dark-mode .section,body.dark-mode .card,body.dark-mode .drop{background:#151c24;border-color:#27313d;color:#e6edf3}
+body.dark-mode .muted,body.dark-mode .label,body.dark-mode .sub{color:#8b98a8}
+body.dark-mode .table th{background:#111820;color:#8b98a8}
+body.dark-mode .table td{border-color:#242d38}
+body.dark-mode .table tr:hover td{background:#19212b}
+body.dark-mode .mapping select,body.dark-mode .mapping input,body.dark-mode .filters select{background:#111820;border-color:#303b48;color:#e6edf3}
+body.dark-mode .finding div{background:#111820}
+body.dark-mode .light{background:#202936;color:#e6edf3}
+.icon-btn{width:36px;height:36px;border:1px solid #d7dde6;background:#fff;color:#344054;border-radius:9px;display:inline-grid;place-items:center;cursor:pointer;transition:.18s ease}
+.icon-btn:hover,.btn:hover,.ok-btn:hover{transform:translateY(-2px)}
+body.dark-mode .icon-btn{background:#151c24;border-color:#303b48;color:#e6edf3}
+.ok-btn{background:#17202b;color:#fff;border:0;border-radius:7px;padding:7px 11px;font-size:11px;font-weight:800;cursor:pointer;transition:.18s ease}
+.section,.card,.finding div{animation:fadeUp .35s ease both}
+@keyframes fadeUp{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:translateY(0)}}
+.toast{position:fixed;right:20px;bottom:20px;z-index:100;background:#17202b;color:#fff;border-radius:9px;padding:11px 14px;font-size:11px;box-shadow:0 10px 30px rgba(0,0,0,.2);animation:toastIn .25s ease}
+@keyframes toastIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+
+body{transition:background-color .25s ease,color .25s ease}
+header,.section,.card,.drop{transition:background-color .25s ease,border-color .25s ease,color .25s ease,box-shadow .25s ease}
+.section{box-shadow:0 2px 8px rgba(16,24,40,.025)}
+.card{box-shadow:0 2px 8px rgba(16,24,40,.025)}
+.card:hover{transform:translateY(-2px);box-shadow:0 8px 22px rgba(16,24,40,.07)}
+.filters select,.mapping select,.mapping input{transition:border-color .18s,box-shadow .18s}
+.filters select:focus,.mapping select:focus,.mapping input:focus{outline:none;border-color:#7b8797;box-shadow:0 0 0 3px rgba(98,112,132,.12)}
+.trivia-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.trivia-card{background:#f7f8fa;border:1px solid #e5e9ef;border-radius:10px;padding:13px;transition:.18s ease}
+.trivia-card:hover{transform:translateY(-2px)}
+.trivia-code{font-size:15px;font-weight:800}.trivia-title{font-size:11px;font-weight:800;margin-top:4px}
+.trivia-text{font-size:10px;color:#667085;line-height:1.5;margin-top:5px}
+.trivia-note{font-size:10px;color:#667085;margin-top:11px;line-height:1.5}
+body.dark-mode .trivia-card{background:#111820;border-color:#27313d}
+body.dark-mode .trivia-text,body.dark-mode .trivia-note{color:#8b98a8}
+body.dark-mode .section,body.dark-mode .card,body.dark-mode .drop{box-shadow:0 4px 18px rgba(0,0,0,.18)}
+body.dark-mode .card:hover{box-shadow:0 10px 28px rgba(0,0,0,.28)}
+@media(max-width:900px){.trivia-grid{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:600px){.trivia-grid{grid-template-columns:1fr}}
+
+/* High-contrast stats */
+.stat-grid{gap:12px}
+.stat-card{position:relative;overflow:hidden}
+body.dark-mode .stat-card{
+  background:#121a23!important;
+  border-color:#334354!important;
+  box-shadow:0 0 0 1px rgba(255,255,255,.025),0 8px 24px rgba(0,0,0,.24)
+}
+body.dark-mode .stat-card:nth-child(1) .stat-value{color:#66e3a3!important;text-shadow:0 0 18px rgba(102,227,163,.18)}
+body.dark-mode .stat-card:nth-child(2) .stat-value{color:#5ee7a0!important;text-shadow:0 0 18px rgba(94,231,160,.18)}
+body.dark-mode .stat-card:nth-child(3) .stat-value{color:#ff7b72!important;text-shadow:0 0 18px rgba(255,123,114,.18)}
+body.dark-mode .stat-card:nth-child(4) .stat-value{color:#65b9ff!important;text-shadow:0 0 18px rgba(101,185,255,.18)}
+body.dark-mode .stat-card:nth-child(5) .stat-value{color:#f2cc60!important;text-shadow:0 0 18px rgba(242,204,96,.18)}
+body.dark-mode .stat-card .stat-label{color:#9eacbc!important}
+body.dark-mode .stat-card .stat-sub{color:#7f8da0!important}
+.stat-pct{font-size:11px;font-weight:800;margin-top:5px;letter-spacing:.01em}
+.stat-pct.good{color:#16834b}.stat-pct.bad{color:#d92d20}.stat-pct.neutral{color:#667085}
+body.dark-mode .stat-pct.good{color:#66e3a3}.body.dark-mode .stat-pct.bad{color:#ff7b72}
+body.dark-mode .stat-pct.bad{color:#ff7b72}
+body.dark-mode .stat-pct.neutral{color:#8fb8dc}
+
+.failure-pct{font-weight:800;letter-spacing:.01em}
+body.dark-mode .failure-pct{color:#65e7a0}
+
+.connecting-highlight{border-left:3px solid #65e3a3}
+body.dark-mode .connecting-highlight{background:#101a18!important}
+
+.connecting-help{font-size:10px;color:#667085;line-height:1.5;margin-top:8px}
+body.dark-mode .connecting-help{color:#8b98a8}
+
+.provider-source-note{font-size:10px;color:#667085;line-height:1.45}
+body.dark-mode .provider-source-note{color:#8b98a8}
+
+.source-switch .btn{min-width:170px}
+.upload-slot{min-height:210px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px}
+.upload-slot.drag{border-color:#17202b;transform:scale(1.01)}
+body.dark-mode .upload-slot.drag{border-color:#65e7a0}
+@media(max-width:650px){.source-switch{flex-direction:column}.source-switch .btn{width:100%}.uploadArea{grid-template-columns:1fr!important}}
+
+/* =========================================================
+   ARCANE UI THEME — visual-only enhancement
+   ========================================================= */
+:root{
+  --arcane-1:#7c5cff;
+  --arcane-2:#38bdf8;
+  --arcane-3:#c084fc;
+  --arcane-bg:#f6f7fb;
+  --arcane-ink:#171528;
+}
+html{scroll-behavior:smooth}
+body{
+  background:
+    radial-gradient(circle at 10% -5%,rgba(124,92,255,.10),transparent 28%),
+    radial-gradient(circle at 92% 8%,rgba(56,189,248,.08),transparent 25%),
+    #f6f7fb;
+  color:var(--arcane-ink);
+  transition:background .35s ease,color .35s ease;
+}
+body::before{
+  content:"";
+  position:fixed;inset:0;pointer-events:none;z-index:-1;opacity:.22;
+  background-image:
+    radial-gradient(circle at 20% 30%,rgba(124,92,255,.18) 0 1px,transparent 1.5px),
+    radial-gradient(circle at 80% 70%,rgba(56,189,248,.15) 0 1px,transparent 1.5px);
+  background-size:90px 90px,130px 130px;
+  animation:arcaneDrift 18s linear infinite;
+}
+@keyframes arcaneDrift{to{background-position:90px 90px,-130px -130px}}
+
+header{
+  background:linear-gradient(105deg,#ffffff 0%,#faf9ff 48%,#f5fbff 100%);
+  border-bottom:1px solid rgba(124,92,255,.14);
+  box-shadow:0 4px 24px rgba(55,40,110,.06);
+  backdrop-filter:blur(14px);
+}
+.logo{
+  position:relative;letter-spacing:-.02em;
+  background:linear-gradient(90deg,#6d4aff,#168ac4);
+  -webkit-background-clip:text;background-clip:text;color:transparent;
+}
+.logo::after{
+  content:"";
+  position:absolute;width:5px;height:5px;border-radius:50%;
+  right:-10px;top:2px;background:#c084fc;
+  box-shadow:0 0 12px #c084fc;
+  animation:twinkle 2.2s ease-in-out infinite;
+}
+.logo span{color:#7b8494}
+@keyframes twinkle{0%,100%{opacity:.25;transform:scale(.7)}50%{opacity:1;transform:scale(1.3)}}
+
+.head h1{
+  letter-spacing:-.035em;
+  background:linear-gradient(100deg,#171528 5%,#6d4aff 55%,#168ac4 100%);
+  -webkit-background-clip:text;background-clip:text;color:transparent;
+}
+.head{animation:fadeSlide .55s cubic-bezier(.2,.8,.2,1) both}
+.upload{animation:fadeSlide .6s cubic-bezier(.2,.8,.2,1) both}
+@keyframes fadeSlide{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+
+.cards{gap:12px}
+.card{
+  position:relative;overflow:hidden;
+  border-color:rgba(124,92,255,.13);
+  box-shadow:0 6px 22px rgba(44,34,91,.045);
+  transition:transform .28s cubic-bezier(.2,.8,.2,1),box-shadow .28s,border-color .28s;
+}
+.card::before{
+  content:"";position:absolute;left:0;right:0;top:0;height:3px;
+  background:linear-gradient(90deg,var(--arcane-1),var(--arcane-3),var(--arcane-2));
+  transform:scaleX(.2);transform-origin:left;
+  transition:transform .35s cubic-bezier(.2,.8,.2,1);
+}
+.card::after{
+  content:"";position:absolute;width:90px;height:90px;right:-45px;top:-45px;
+  background:radial-gradient(circle,rgba(124,92,255,.10),transparent 68%);
+  pointer-events:none;
+}
+.card:hover{
+  transform:translateY(-4px);
+  border-color:rgba(124,92,255,.28);
+  box-shadow:0 14px 34px rgba(63,42,135,.11);
+}
+.card:hover::before{transform:scaleX(1)}
+.card .value{letter-spacing:-.025em}
+
+.section{
+  border-color:rgba(124,92,255,.12);
+  box-shadow:0 5px 22px rgba(44,34,91,.035);
+  transition:transform .28s,box-shadow .28s,border-color .28s;
+  animation:sectionIn .45s cubic-bezier(.2,.8,.2,1) both;
+}
+.section:hover{border-color:rgba(124,92,255,.19);box-shadow:0 10px 30px rgba(44,34,91,.06)}
+@keyframes sectionIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+.section-title{
+  background:linear-gradient(90deg,rgba(124,92,255,.035),transparent 60%);
+  letter-spacing:-.01em;
+}
+.section-title:first-letter{color:#7c5cff}
+
+.finding{gap:10px}
+.finding div{
+  position:relative;overflow:hidden;
+  transition:transform .22s ease,box-shadow .22s ease,background .22s ease;
+}
+.finding div:hover{transform:translateY(-2px);box-shadow:0 8px 20px rgba(40,30,90,.07)}
+.finding div::before{
+  content:"";position:absolute;left:0;top:0;bottom:0;width:3px;
+}
+.finding .good{border-left:0;background:linear-gradient(100deg,rgba(22,131,75,.10),rgba(22,131,75,.025))}
+.finding .bad{border-left:0;background:linear-gradient(100deg,rgba(217,45,32,.10),rgba(217,45,32,.025))}
+.finding .warn{border-left:0;background:linear-gradient(100deg,rgba(181,71,8,.11),rgba(181,71,8,.025))}
+.finding .good::before{background:#35c982;box-shadow:0 0 12px rgba(53,201,130,.55)}
+.finding .bad::before{background:#ff5c68;box-shadow:0 0 12px rgba(255,92,104,.5)}
+.finding .warn::before{background:#f4ad45;box-shadow:0 0 12px rgba(244,173,69,.5)}
+
+.btn,.icon-btn,.ok-btn{
+  transition:transform .2s ease,box-shadow .2s ease,filter .2s ease,background .2s ease;
+}
+.btn:hover,.icon-btn:hover,.ok-btn:hover{transform:translateY(-2px)}
+.btn.dark{
+  background:linear-gradient(135deg,#29204f,#6849c9);
+  box-shadow:0 7px 18px rgba(83,57,173,.20);
+}
+.btn.dark:hover{box-shadow:0 10px 24px rgba(83,57,173,.30);filter:brightness(1.06)}
+.btn.light:hover{box-shadow:0 7px 18px rgba(44,34,91,.08)}
+
+.drop{
+  position:relative;
+  border-color:rgba(124,92,255,.28);
+  background:linear-gradient(145deg,rgba(255,255,255,.95),rgba(248,247,255,.95));
+  box-shadow:0 8px 30px rgba(77,55,150,.05);
+  transition:transform .3s,box-shadow .3s,border-color .3s,background .3s;
+}
+.drop::before{
+  content:"✦";position:absolute;top:18px;right:22px;color:#c084fc;font-size:18px;
+  opacity:.55;animation:floatSpark 3s ease-in-out infinite;
+}
+.drop:hover{
+  transform:translateY(-3px);
+  border-color:#7c5cff;
+  box-shadow:0 14px 34px rgba(94,70,180,.13);
+}
+@keyframes floatSpark{0%,100%{transform:translateY(0) rotate(0);opacity:.35}50%{transform:translateY(-6px) rotate(12deg);opacity:.9}}
+
+.toast{
+  border:1px solid rgba(192,132,252,.32)!important;
+  background:linear-gradient(135deg,rgba(26,20,48,.97),rgba(27,37,62,.97))!important;
+  box-shadow:0 12px 35px rgba(30,20,70,.35),0 0 22px rgba(124,92,255,.12)!important;
+  backdrop-filter:blur(12px);
+  animation:toastMagic .4s cubic-bezier(.2,.8,.2,1)!important;
+}
+@keyframes toastMagic{
+  from{opacity:0;transform:translateY(16px) scale(.96);filter:blur(3px)}
+  to{opacity:1;transform:none;filter:none}
+}
+
+.progress{
+  padding:8px 11px;border-radius:8px;
+  background:linear-gradient(90deg,rgba(124,92,255,.07),rgba(56,189,248,.06));
+}
+.progress::before{
+  content:"✦ ";color:#8b5cf6;animation:twinkle 1.2s infinite;
+}
+
+.table tr{transition:background .18s,transform .18s}
+.table tr:hover td{background:linear-gradient(90deg,rgba(124,92,255,.055),rgba(56,189,248,.025))}
+
+.trivia-card{transition:transform .25s,box-shadow .25s,border-color .25s}
+.trivia-card:hover{
+  transform:translateY(-3px);
+  border-color:rgba(124,92,255,.30);
+  box-shadow:0 10px 24px rgba(73,50,150,.10);
+}
+.trivia-code{
+  background:linear-gradient(90deg,#7c5cff,#168ac4);
+  -webkit-background-clip:text;background-clip:text;color:transparent;
+}
+
+/* Elegant arcane night mode */
+body.dark-mode{
+  background:
+    radial-gradient(circle at 8% -10%,rgba(124,92,255,.18),transparent 30%),
+    radial-gradient(circle at 95% 0%,rgba(56,189,248,.10),transparent 28%),
+    radial-gradient(circle at 55% 110%,rgba(192,132,252,.08),transparent 34%),
+    #090b12!important;
+  color:#edf2ff!important;
+}
+body.dark-mode::before{opacity:.36}
+body.dark-mode header{
+  background:linear-gradient(105deg,rgba(14,16,27,.94),rgba(21,18,38,.94),rgba(10,25,35,.94));
+  border-bottom-color:rgba(124,92,255,.24);
+  box-shadow:0 5px 30px rgba(0,0,0,.35),0 1px 0 rgba(192,132,252,.05);
+}
+body.dark-mode .logo{
+  background:linear-gradient(90deg,#c4b5fd,#67e8f9,#e9d5ff);
+  -webkit-background-clip:text;background-clip:text;color:transparent;
+}
+body.dark-mode .logo span{color:#8893a8}
+body.dark-mode .head h1{
+  background:linear-gradient(100deg,#f4f0ff,#b9a7ff,#75dfff);
+  -webkit-background-clip:text;background-clip:text;color:transparent;
+}
+body.dark-mode .section,body.dark-mode .card,body.dark-mode .drop{
+  background:linear-gradient(145deg,#121722,#10151e)!important;
+  border-color:rgba(137,119,204,.22)!important;
+  box-shadow:0 8px 28px rgba(0,0,0,.28),inset 0 1px 0 rgba(255,255,255,.025);
+}
+body.dark-mode .card::before{background:linear-gradient(90deg,#8b5cf6,#c084fc,#22d3ee)}
+body.dark-mode .card:hover{
+  border-color:rgba(139,92,246,.42)!important;
+  box-shadow:0 15px 38px rgba(0,0,0,.38),0 0 22px rgba(124,92,255,.07);
+}
+body.dark-mode .section-title{
+  background:linear-gradient(90deg,rgba(124,92,255,.075),transparent 65%);
+  border-bottom-color:rgba(137,119,204,.15);
+}
+body.dark-mode .finding .good{background:linear-gradient(100deg,rgba(53,201,130,.13),rgba(53,201,130,.035))}
+body.dark-mode .finding .bad{background:linear-gradient(100deg,rgba(255,92,104,.14),rgba(255,92,104,.035))}
+body.dark-mode .finding .warn{background:linear-gradient(100deg,rgba(244,173,69,.14),rgba(244,173,69,.035))}
+body.dark-mode .finding div:hover{box-shadow:0 9px 24px rgba(0,0,0,.28)}
+body.dark-mode .table th{background:#0d121b!important;color:#98a5bb!important}
+body.dark-mode .table tr:hover td{background:linear-gradient(90deg,rgba(124,92,255,.09),rgba(56,189,248,.035))}
+body.dark-mode .drop{
+  background:linear-gradient(145deg,#141728,#0f1720)!important;
+  border-color:rgba(139,92,246,.38)!important;
+}
+body.dark-mode .drop:hover{border-color:#a78bfa!important;box-shadow:0 15px 38px rgba(0,0,0,.35),0 0 24px rgba(124,92,255,.10)}
+body.dark-mode .filters select,body.dark-mode .mapping select,body.dark-mode .mapping input{
+  background:#0d131d!important;color:#e8edfa!important;border-color:#344154!important;
+}
+body.dark-mode .ok-btn{
+  background:linear-gradient(135deg,#30215d,#5d3cb8);
+  box-shadow:0 5px 15px rgba(83,57,173,.22);
+}
+body.dark-mode .btn.dark{background:linear-gradient(135deg,#39266f,#7050d6)}
+body.dark-mode .btn.light{background:#1a2230;color:#dce4f3;border:1px solid #303b4d}
+body.dark-mode .stat-pct.good{color:#6ee7ad}
+body.dark-mode .stat-pct.bad{color:#ff7f89}
+body.dark-mode .stat-pct.neutral{color:#8bd7ff}
+body.dark-mode .trivia-card{
+  background:linear-gradient(145deg,#111722,#0e141d);
+  border-color:rgba(139,92,246,.20);
+}
+body.dark-mode .trivia-card:hover{
+  border-color:rgba(139,92,246,.42);
+  box-shadow:0 12px 30px rgba(0,0,0,.35),0 0 20px rgba(124,92,255,.07);
+}
+body.dark-mode .trivia-code{background:linear-gradient(90deg,#b9a7ff,#67e8f9);-webkit-background-clip:text;background-clip:text}
+body.dark-mode footer{color:#65728a}
+body.dark-mode .error{background:rgba(255,82,96,.10);border:1px solid rgba(255,82,96,.22);color:#ffadb5}
+
+/* Gentle stagger for dashboard sections */
+.section:nth-of-type(1){animation-delay:.02s}
+.section:nth-of-type(2){animation-delay:.05s}
+.section:nth-of-type(3){animation-delay:.08s}
+.section:nth-of-type(4){animation-delay:.11s}
+.section:nth-of-type(5){animation-delay:.14s}
+.section:nth-of-type(6){animation-delay:.17s}
+
+.analyst-notes{
+  width:100%;min-height:190px;resize:vertical;
+  border:1px solid #d9d2ee;border-radius:12px;
+  padding:14px 16px;font:12px/1.65 Inter,Arial,sans-serif;
+  color:#28233d;background:
+    linear-gradient(rgba(255,255,255,.94),rgba(255,255,255,.94)),
+    repeating-linear-gradient(to bottom,transparent 0,transparent 27px,rgba(124,92,255,.08) 28px);
+  outline:none;transition:border-color .25s,box-shadow .25s,background .25s;
+}
+.analyst-notes:focus{
+  border-color:#8b5cf6;
+  box-shadow:0 0 0 3px rgba(124,92,246,.11),0 10px 25px rgba(80,55,150,.07);
+}
+.notes-hint{font-size:10px;color:#8b92a3;margin-top:8px}
+body.dark-mode .analyst-notes{
+  color:#e9e7f4;background:
+    linear-gradient(rgba(13,16,25,.96),rgba(13,16,25,.96)),
+    repeating-linear-gradient(to bottom,transparent 0,transparent 27px,rgba(167,139,250,.09) 28px);
+  border-color:#40375b;
+}
+body.dark-mode .analyst-notes:focus{
+  border-color:#a78bfa;box-shadow:0 0 0 3px rgba(167,139,250,.13),0 12px 30px rgba(0,0,0,.25);
+}
+body.dark-mode .notes-hint{color:#7f8ba0}
+
+.sortable-th{cursor:pointer;user-select:none;white-space:nowrap}
+.sortable-th:hover{background:rgba(124,92,255,.10)!important}
+.sort-indicator{opacity:.5;font-size:9px}
+.destination-provider-grid{display:grid;grid-template-columns:minmax(230px,.8fr) 2fr;gap:16px;align-items:start}
+.destination-provider-highlight{
+  min-height:135px;padding:18px;border-radius:12px;
+  background:linear-gradient(145deg,rgba(124,92,255,.09),rgba(56,189,248,.045));
+  border:1px solid rgba(124,92,255,.16);
+  display:flex;flex-direction:column;justify-content:center;
+}
+.destination-provider-name{
+  font-size:25px;font-weight:850;margin:8px 0 4px;
+  background:linear-gradient(90deg,#7c5cff,#168ac4);
+  -webkit-background-clip:text;background-clip:text;color:transparent;
+}
+.destination-provider-meta{font-size:11px;color:#667085;line-height:1.5}
+.prefix-collapsible{overflow:hidden}
+.prefix-collapsible>summary{list-style:none;cursor:pointer}
+.prefix-collapsible>summary::-webkit-details-marker{display:none}
+.prefix-collapsible>summary::after{content:"＋";float:right;font-size:14px;color:#8b5cf6}
+.prefix-collapsible[open]>summary::after{content:"−"}
+body.dark-mode .destination-provider-highlight{
+  background:linear-gradient(145deg,rgba(124,92,255,.13),rgba(56,189,248,.055));
+  border-color:rgba(139,92,246,.25)
+}
+body.dark-mode .destination-provider-meta{color:#8b98a8}
+body.dark-mode .sortable-th:hover{background:rgba(139,92,246,.14)!important}
+@media(max-width:800px){.destination-provider-grid{grid-template-columns:1fr}}
+
+/* Refined dashboard cards */
+.cards{display:grid!important;grid-template-columns:repeat(auto-fit,minmax(180px,1fr))!important;gap:16px!important;margin:18px 0 24px!important;align-items:stretch!important}
+.card{min-height:118px!important;padding:18px!important;border-radius:16px!important;display:flex!important;flex-direction:column!important;justify-content:center!important;position:relative!important;overflow:hidden!important}
+.card .label{margin-bottom:7px!important}
+.card .value{font-size:28px!important;line-height:1.1!important;font-weight:850!important}
+.status-card::before{content:""!important;position:absolute!important;top:0!important;left:0!important;right:0!important;height:4px!important}
+.status-percent{font-size:25px!important;font-weight:900!important;line-height:1!important;margin:3px 0 7px!important;letter-spacing:-.03em!important}
+.success-card::before{background:linear-gradient(90deg,#16a34a,#4ade80)!important}
+.failed-card::before{background:linear-gradient(90deg,#e11d48,#fb7185)!important}
+.success-card .value,.success-percent{color:#168a56!important}
+.failed-card .value,.failed-percent{color:#d7264a!important}
+body.dark-mode .success-card{background:linear-gradient(145deg,rgba(22,163,74,.17),rgba(18,26,31,.98))!important;border-color:rgba(74,222,128,.34)!important}
+body.dark-mode .failed-card{background:linear-gradient(145deg,rgba(225,29,72,.17),rgba(18,26,31,.98))!important;border-color:rgba(251,113,133,.34)!important}
+body.dark-mode .success-card .value,body.dark-mode .success-percent{color:#6ee7a8!important}
+body.dark-mode .failed-card .value,body.dark-mode .failed-percent{color:#ff8fa3!important}
+.section{margin-top:20px!important;margin-bottom:20px!important}
+.section-body{padding:18px!important}
+@media(max-width:640px){.cards{grid-template-columns:1fr 1fr!important;gap:10px!important}.card{min-height:105px!important;padding:14px!important}.card .value{font-size:24px!important}.status-percent{font-size:21px!important}}
+
+/* Elegant hero comparison */
+.hero-kicker{
+  font-size:11px!important;
+  font-weight:850!important;
+  letter-spacing:.12em!important;
+  color:#8b5cf6!important;
+  margin-bottom:8px!important;
+}
+.hero-main-title{
+  margin:0!important;
+  font-size:clamp(28px,4vw,46px)!important;
+  line-height:1.08!important;
+  letter-spacing:-.045em!important;
+  font-weight:900!important;
+}
+.hero-subtitle{
+  margin:10px 0 20px!important;
+  font-size:clamp(16px,1.8vw,21px)!important;
+  line-height:1.3!important;
+  font-weight:650!important;
+  color:#667085!important;
+}
+.speed-comparison{
+  display:flex!important;
+  align-items:stretch!important;
+  gap:14px!important;
+  max-width:720px!important;
+  margin:0 0 20px!important;
+}
+.speed-card{
+  flex:1!important;
+  min-width:0!important;
+  padding:16px 18px!important;
+  border:1px solid rgba(100,116,139,.18)!important;
+  border-radius:14px!important;
+  background:rgba(255,255,255,.68)!important;
+  box-shadow:0 8px 28px rgba(15,23,42,.05)!important;
+  transition:transform .25s ease,box-shadow .25s ease!important;
+}
+.speed-card:hover{transform:translateY(-3px)!important;box-shadow:0 14px 34px rgba(15,23,42,.09)!important}
+.speed-card-label{
+  font-size:10px!important;
+  font-weight:850!important;
+  letter-spacing:.08em!important;
+  color:#7b8090!important;
+  margin-bottom:10px!important;
+}
+.speed-time{
+  font-size:28px!important;
+  font-weight:900!important;
+  line-height:1!important;
+  letter-spacing:-.04em!important;
+  margin-bottom:9px!important;
+}
+.speed-steps{
+  font-size:11px!important;
+  color:#7b8090!important;
+  white-space:nowrap!important;
+}
+.manual-speed .speed-time{color:#64748b!important}
+.analyzer-speed{
+  border-color:rgba(139,92,246,.28)!important;
+  background:linear-gradient(135deg,rgba(139,92,246,.08),rgba(255,255,255,.82))!important;
+}
+.analyzer-speed .speed-time{color:#7c3aed!important}
+.speed-arrow{
+  align-self:center!important;
+  font-size:26px!important;
+  font-weight:500!important;
+  color:#8b5cf6!important;
+  animation:heroArrow 1.8s ease-in-out infinite!important;
+}
+@keyframes heroArrow{0%,100%{transform:translateX(0)}50%{transform:translateX(5px)}}
+.hero-source-text{
+  max-width:720px!important;
+  font-size:12px!important;
+  line-height:1.55!important;
+  color:#7b8090!important;
+}
+body.dark-mode .hero-kicker{color:#b9a7ff!important}
+body.dark-mode .hero-subtitle{color:#aab3c2!important}
+body.dark-mode .speed-card{background:rgba(17,24,39,.76)!important;border-color:rgba(148,163,184,.16)!important;box-shadow:none!important}
+body.dark-mode .speed-card-label,body.dark-mode .speed-steps,body.dark-mode .hero-source-text{color:#94a3b8!important}
+body.dark-mode .manual-speed .speed-time{color:#cbd5e1!important}
+body.dark-mode .analyzer-speed{background:linear-gradient(135deg,rgba(139,92,246,.16),rgba(17,24,39,.86))!important;border-color:rgba(167,139,250,.3)!important}
+body.dark-mode .analyzer-speed .speed-time{color:#c4b5fd!important}
+@media(max-width:640px){
+  .speed-comparison{flex-direction:column!important;gap:9px!important}
+  .speed-arrow{align-self:center!important;transform:rotate(90deg)!important;animation:none!important;height:22px!important}
+  .speed-card{padding:15px!important}
+  .speed-time{font-size:25px!important}
+  .speed-steps{white-space:normal!important}
+}
+
+/* DALnetSystem brand treatment */
+.dalnet-name{white-space:nowrap}
+.system-accent{
+  color:#f59e0b!important;
+  text-shadow:0 2px 16px rgba(245,158,11,.16);
+}
+.hero-title-rest{color:inherit}
+body.dark-mode .system-accent{
+  color:#fbbf24!important;
+  text-shadow:0 2px 18px rgba(251,191,36,.20);
+}
+
+/* ===== Premium DALnetSystem hero inspired by the approved dark concept ===== */
+.hero{
+  position:relative!important;
+  overflow:hidden!important;
+  padding:44px 46px 30px!important;
+  border-radius:22px!important;
+  isolation:isolate;
+}
+.hero:before,.hero:after{
+  content:"";
+  position:absolute;
+  pointer-events:none;
+  z-index:-1;
+  border:1px solid rgba(124,58,237,.28);
+  border-radius:50%;
+}
+.hero:before{width:440px;height:440px;right:-220px;top:-250px}
+.hero:after{width:360px;height:360px;left:-250px;bottom:-260px}
+.hero-kicker{
+  font-size:10px!important;
+  letter-spacing:.18em!important;
+  font-weight:850!important;
+  color:#9b7cff!important;
+}
+.hero-main-title{
+  margin:8px 0 0!important;
+  font-size:clamp(44px,7vw,82px)!important;
+  line-height:.92!important;
+  letter-spacing:-.07em!important;
+}
+.dalnet-name{font-weight:950!important}
+.system-accent{
+  color:#d97706!important;
+  text-shadow:0 4px 20px rgba(217,119,6,.18)!important;
+}
+.engine-title{
+  margin:12px 0 0!important;
+  font-size:clamp(25px,3.8vw,52px)!important;
+  font-weight:850!important;
+  letter-spacing:-.045em!important;
+  line-height:1.05!important;
+}
+.hero-subtitle{
+  margin:15px 0 25px!important;
+  font-size:clamp(18px,2vw,29px)!important;
+  font-weight:500!important;
+  color:#a78bfa!important;
+  letter-spacing:-.025em!important;
+}
+.premium-comparison{
+  max-width:820px!important;
+  gap:22px!important;
+  align-items:center!important;
+}
+.speed-card{
+  padding:22px!important;
+  border-radius:18px!important;
+  background:rgba(15,23,42,.78)!important;
+}
+.speed-card:hover{transform:translateY(-4px)!important}
+.speed-icon{
+  float:left;
+  width:44px;height:44px;
+  display:grid;place-items:center;
+  margin-right:13px;
+  border-radius:50%;
+  border:1px solid rgba(148,163,184,.25);
+  font-size:28px;
+  color:#cbd5e1;
+}
+.analyzer-speed .speed-icon{
+  color:#f59e0b;
+  border-color:rgba(139,92,246,.5);
+  background:rgba(124,58,237,.14);
+}
+.speed-card-label{padding-top:5px!important;font-size:11px!important}
+.speed-time{
+  clear:both;
+  padding-top:19px;
+  font-size:clamp(29px,3vw,43px)!important;
+}
+.speed-divider{height:1px;background:rgba(148,163,184,.16);margin:17px 0 14px}
+.speed-steps{font-size:12px!important}
+.speed-steps span{color:#8b5cf6;padding:0 4px}
+.speed-arrow{
+  font-size:38px!important;
+  color:#a78bfa!important;
+  text-shadow:0 0 24px rgba(139,92,246,.55);
+}
+.analyzer-speed{
+  background:linear-gradient(135deg,rgba(76,29,149,.26),rgba(15,23,42,.92))!important;
+  border-color:rgba(139,92,246,.55)!important;
+  box-shadow:0 0 34px rgba(124,58,237,.12)!important;
+}
+.analyzer-speed .speed-time{color:#a78bfa!important}
+.hero-benefits{
+  max-width:1180px;
+  display:grid;
+  grid-template-columns:repeat(4,1fr);
+  margin:25px 0 14px;
+  border:1px solid rgba(148,163,184,.14);
+  border-radius:16px;
+  background:rgba(15,23,42,.42);
+}
+.hero-benefits>div{
+  padding:15px 18px;
+  min-width:0;
+}
+.hero-benefits>div+div{border-left:1px solid rgba(148,163,184,.14)}
+.hero-benefits b{display:block;font-size:12px;color:#dbeafe}
+.hero-benefits span{display:block;margin-top:4px;font-size:10px;color:#94a3b8}
+.hero-source-text{font-size:11px!important;opacity:.78}
+body.dark-mode .hero{background:linear-gradient(135deg,#080d1c 0%,#101125 100%)!important}
+body:not(.dark-mode) .hero{background:linear-gradient(135deg,#f8fafc,#f6f3ff)!important}
+body:not(.dark-mode) .speed-card{background:rgba(255,255,255,.9)!important}
+body:not(.dark-mode) .hero-benefits{background:rgba(255,255,255,.62)!important}
+body:not(.dark-mode) .hero-benefits b{color:#334155!important}
+@media(max-width:760px){
+  .hero{padding:30px 22px 24px!important}
+  .premium-comparison{gap:10px!important}
+  .hero-benefits{grid-template-columns:repeat(2,1fr)}
+  .hero-benefits>div:nth-child(3){border-left:0}
+}
+
+/* Clear speed icon for VoIP Analyzer card */
+.speed-bolt{
+  color:#f59e0b!important;
+  font-size:30px!important;
+  font-weight:900!important;
+  background:linear-gradient(135deg,rgba(245,158,11,.18),rgba(124,58,237,.18))!important;
+  box-shadow:0 0 22px rgba(245,158,11,.12)!important;
+}
+
+/* ===== UX Priority: functionality first, branding second ===== */
+.hero{
+  padding:24px 28px 20px!important;
+  margin-bottom:16px!important;
+}
+.hero-kicker{
+  font-size:9px!important;
+  margin-bottom:4px!important;
+  opacity:.78!important;
+}
+.hero-main-title{
+  margin:2px 0 0!important;
+  font-size:clamp(22px,2.8vw,34px)!important;
+  line-height:1.05!important;
+  letter-spacing:-.045em!important;
+}
+.engine-title{
+  margin:6px 0 0!important;
+  font-size:clamp(17px,2vw,24px)!important;
+  line-height:1.2!important;
+  font-weight:750!important;
+}
+.hero-subtitle{
+  margin:5px 0 14px!important;
+  font-size:14px!important;
+  opacity:.88!important;
+}
+.premium-comparison{
+  max-width:620px!important;
+  gap:12px!important;
+  margin-bottom:12px!important;
+}
+.speed-card{
+  padding:13px 15px!important;
+  border-radius:13px!important;
+}
+.speed-icon{
+  width:34px!important;height:34px!important;
+  font-size:21px!important;
+  margin-right:9px!important;
+}
+.speed-card-label{
+  padding-top:2px!important;
+  font-size:9px!important;
+  margin-bottom:5px!important;
+}
+.speed-time{
+  padding-top:10px!important;
+  font-size:clamp(21px,2.4vw,30px)!important;
+  margin-bottom:4px!important;
+}
+.speed-divider{margin:10px 0 8px!important}
+.speed-steps{font-size:10px!important}
+.speed-arrow{font-size:25px!important}
+.hero-benefits{
+  max-width:760px!important;
+  margin:14px 0 8px!important;
+  border-radius:12px!important;
+}
+.hero-benefits>div{padding:10px 12px!important}
+.hero-benefits b{font-size:10px!important}
+.hero-benefits span{font-size:9px!important}
+.hero-source-text{
+  margin:8px 0 0!important;
+  font-size:10px!important;
+}
+
+/* Give primary interaction area more prominence */
+.upload-panel,.upload-card,.source-card,.mode-card{
+  position:relative;
+}
+#uploadArea,.drop-zone,.upload-zone{
+  min-height:160px!important;
+}
+button,.btn,.mode-btn,.source-btn{
+  min-height:42px!important;
+}
+@media(max-width:760px){
+  .hero{padding:20px 18px 16px!important}
+  .hero-main-title{font-size:27px!important}
+  .engine-title{font-size:18px!important}
+  .hero-benefits{display:none!important}
+  .premium-comparison{max-width:none!important}
+}
+
+/* Final hero alignment and compact comparison */
+.hero{
+  text-align:center!important;
+  padding:20px 24px 16px!important;
+}
+.hero-kicker,.hero-main-title,.engine-title,.hero-subtitle,.hero-source-text{
+  text-align:center!important;
+  margin-left:auto!important;
+  margin-right:auto!important;
+}
+.hero-kicker{
+  font-size:9px!important;
+  letter-spacing:.13em!important;
+  margin-bottom:5px!important;
+}
+.hero-main-title{
+  font-size:clamp(25px,3vw,36px)!important;
+  margin-top:0!important;
+}
+.engine-title{
+  font-size:clamp(16px,1.8vw,22px)!important;
+  margin-top:5px!important;
+}
+.hero-subtitle{
+  font-size:13px!important;
+  margin-top:4px!important;
+  margin-bottom:10px!important;
+}
+.premium-comparison{
+  max-width:500px!important;
+  width:100%!important;
+  margin:0 auto 10px!important;
+  gap:8px!important;
+  justify-content:center!important;
+}
+.speed-card{
+  padding:10px 12px!important;
+  border-radius:11px!important;
+}
+.speed-icon{
+  float:none!important;
+  width:27px!important;
+  height:27px!important;
+  margin:0 auto 5px!important;
+  font-size:16px!important;
+}
+.speed-card-label{
+  padding:0!important;
+  text-align:center!important;
+  font-size:8px!important;
+  letter-spacing:.06em!important;
+  white-space:nowrap!important;
+}
+.speed-time{
+  padding-top:7px!important;
+  text-align:center!important;
+  font-size:clamp(18px,2vw,24px)!important;
+}
+.speed-divider{margin:7px 0!important}
+.speed-steps{
+  text-align:center!important;
+  font-size:8.5px!important;
+  white-space:normal!important;
+}
+.speed-arrow{
+  font-size:20px!important;
+  align-self:center!important;
+}
+.hero-benefits{
+  margin:10px auto 7px!important;
+}
+.hero-source-text{
+  max-width:720px!important;
+  margin-top:7px!important;
+}
+@media(max-width:640px){
+  .premium-comparison{max-width:360px!important}
+  .speed-card{padding:9px!important}
+  .speed-arrow{font-size:17px!important}
+  .hero-main-title{font-size:29px!important}
+}
+
+/* Visible countdown progress popup */
+.cdr-progress-popup{
+  position:fixed; inset:0; z-index:2147483647;
+  display:none; align-items:center; justify-content:center;
+  background:rgba(5,8,18,.52);
+  backdrop-filter:blur(6px);
+  -webkit-backdrop-filter:blur(6px);
+}
+.cdr-progress-popup.active{display:flex;animation:popupFade .18s ease-out}
+@keyframes popupFade{from{opacity:0}to{opacity:1}}
+.cdr-progress-card{
+  width:min(360px,90vw); padding:26px 28px 24px;
+  border-radius:18px; text-align:center;
+  background:linear-gradient(145deg,#171427,#24183d);
+  border:1px solid rgba(167,139,250,.42);
+  box-shadow:0 28px 80px rgba(0,0,0,.48);
+}
+.cdr-progress-ring{
+  width:66px;height:66px;margin:0 auto 16px;border-radius:50%;
+  display:grid;place-items:center;
+  background:conic-gradient(#a78bfa 0deg,#d97706 150deg,rgba(255,255,255,.09) 150deg);
+  position:relative;
+}
+.cdr-progress-ring:before{
+  content:"";position:absolute;inset:6px;border-radius:50%;background:#1a152b;
+}
+.cdr-progress-ring span{position:relative;z-index:1;color:#fff;font-weight:900;font-size:19px}
+.cdr-progress-title{font-size:18px;font-weight:850;color:#fff;margin-bottom:6px}
+.cdr-progress-text{font-size:12px;color:#aeb6c7}
+.cdr-progress-track{height:6px;background:rgba(255,255,255,.09);border-radius:99px;overflow:hidden;margin-top:20px}
+.cdr-progress-fill{height:100%;width:0;border-radius:99px;background:linear-gradient(90deg,#7c3aed,#a78bfa,#d97706);transition:width .1s linear}
+body:not(.dark-mode) .cdr-progress-card{background:linear-gradient(145deg,#fff,#faf7ff)}
+body:not(.dark-mode) .cdr-progress-ring:before{background:#fff}
+body:not(.dark-mode) .cdr-progress-ring span,.body:not(.dark-mode) .cdr-progress-title{color:#1e293b}
+body:not(.dark-mode) .cdr-progress-title{color:#1e293b}
+
+/* Client Prefix → Destination Operator Answer Rate */
+.prefix-operator-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px;margin:0 0 14px}
+.prefix-operator-card{padding:14px;border:1px solid rgba(148,163,184,.14);border-radius:12px;background:rgba(148,163,184,.035)}
+.prefix-operator-card .label{font-size:10px;text-transform:uppercase;letter-spacing:.07em;opacity:.65}
+.prefix-operator-card .value{font-size:24px;font-weight:850;margin-top:4px}
+.prefix-operator-toolbar{display:flex;gap:10px;align-items:end;flex-wrap:wrap;margin:0 0 14px}
+.prefix-operator-toolbar label{display:flex;flex-direction:column;gap:6px;font-size:10px;font-weight:800;letter-spacing:.05em}
+.prefix-operator-toolbar select{min-width:180px;padding:9px 10px;border-radius:9px}
+.prefix-operator-table td:first-child{font-weight:750}
+.prefix-rate{font-size:15px;font-weight:900}
+.prefix-rate-bar{height:7px;min-width:100px;border-radius:99px;background:rgba(148,163,184,.16);overflow:hidden}
+.prefix-rate-bar span{display:block;height:100%;border-radius:99px;background:linear-gradient(90deg,#7c3aed,#a78bfa)}
+
+
+/* Keep original overview + new detailed breakdown visually distinct */
+#dialingPlanGatewaySection{margin-top:16px}
+#dialingPlanGatewaySection .section-title{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+#dialingPlanGatewaySection .section-title .muted{font-size:10px;opacity:.62;font-weight:500}
+</style>
+<style>
+.prefix-operator-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px}
+.prefix-operator-card{padding:12px;border:1px solid rgba(148,163,184,.14);border-radius:11px;background:rgba(148,163,184,.035)}
+.prefix-operator-card .label{font-size:9px;text-transform:uppercase;letter-spacing:.07em;opacity:.65}
+.prefix-operator-card .value{font-size:21px;font-weight:850;margin-top:3px}
+.prefix-operator-toolbar{display:flex;gap:10px;align-items:end;flex-wrap:wrap;margin-bottom:13px}
+.prefix-operator-toolbar label{display:flex;flex-direction:column;gap:5px;font-size:9px;font-weight:800;letter-spacing:.05em}
+.prefix-operator-toolbar select{min-width:170px;padding:8px 10px;border-radius:8px}
+.prefix-operator-table{width:100%;border-collapse:collapse;font-size:12px}
+.prefix-operator-table th,.prefix-operator-table td{padding:10px;border-bottom:1px solid rgba(148,163,184,.12);text-align:left}
+.prefix-rate{font-size:14px;font-weight:900}.prefix-rate-bar{height:6px;min-width:100px;border-radius:99px;background:rgba(148,163,184,.15);overflow:hidden}.prefix-rate-bar span{display:block;height:100%;background:linear-gradient(90deg,#7c3aed,#a78bfa);border-radius:99px}
+@media(max-width:650px){.prefix-operator-grid{grid-template-columns:1fr}.prefix-operator-toolbar select{min-width:140px}}
+</style></head>
+<body>
+<header>
+  <div class="logo">✦ VoIP CDR Analyzer <span>DALnet VoIP Intelligence System • Client-side</span></div>
+  <div id="topActions"></div>
+</header>
+<main id="app"></main>
+
+<script>
+const ALIASES={
+ callDuration:["call duration","duration","billsec","talk time","conversation duration","call_duration"],
+ destination:["destination number","destination","dst","dst number","phone number","phone","number","callee","called number","called","destination_number"],
+ duration:["connecting duration","connect duration","connecting seconds","connecting duration ms","connecting_duration"],
+ provider:["provider","destination provider","carrier","operator","route provider","vendor","trunk provider"],
+ plan:["dialing plan","dial plan","dialplan","routing plan","route","routing","dialing_plan"],
+ status:["termination reason","termination","failure cause","failure reason","hangup cause","cause","call status","status","disposition","call result","result","failure"]
+};
+const PREFIX_PROVIDER={
+"0811":"Telkomsel","0812":"Telkomsel","0813":"Telkomsel","0821":"Telkomsel","0822":"Telkomsel","0823":"Telkomsel","0851":"Telkomsel","0852":"Telkomsel","0853":"Telkomsel",
+"0814":"Indosat","0815":"Indosat","0816":"Indosat","0855":"Indosat","0856":"Indosat","0857":"Indosat","0858":"Indosat","0895":"Indosat","0896":"Indosat","0897":"Indosat","0898":"Indosat","0899":"Indosat",
+"0817":"XL","0818":"XL","0819":"XL","0859":"XL","0877":"XL","0878":"XL",
+"0831":"AXIS","0832":"AXIS","0833":"AXIS","0838":"AXIS",
+"0881":"Smartfren","0882":"Smartfren","0883":"Smartfren","0884":"Smartfren","0885":"Smartfren","0886":"Smartfren","0887":"Smartfren","0888":"Smartfren","0889":"Smartfren"
+};
+const FAIL=[
+ ["Busy",["busy","user busy","486"]],
+ ["No Answer",["no answer","noanswer","ring timeout","timeout","noanswering"]],
+ ["Temporarily Unavailable",["temporarily unavailable","unavailable","480"]],
+ ["Congestion",["congestion","503","network congestion"]],
+ ["Rejected",["rejected","reject","declined","decline","403","603"]],
+ ["Caller Hangup",["caller hangup","caller hungup","cancel","cancelled","canceled","caller disconnected","hangup by caller"]]
+];
+let state=window.state={raw:[],headers:[],map:{},file:"",prefix:4,clientPrefix:"",provider:"All",prefixFilter:"All",result:null,base:null,dark:localStorage.getItem("cdr-dark-mode")==="1",connectMin:15,connectMax:25,connectDivisor:1000,providerSource:"Tariff Description",sourceMode:"VPS",successFile:"",failedFile:"",analystNotes:""};
+let charts=[];
+
+const $=id=>document.getElementById(id);
+const key=s=>String(s??"").trim().toLowerCase().replace(/[_-]+/g," ").replace(/\s+/g," ");
+function findCol(headers,aliases){
+  const n=headers.map(key);
+  for(const a of aliases){const i=n.indexOf(key(a));if(i>=0)return headers[i]}
+  for(let i=0;i<n.length;i++)if(aliases.some(a=>n[i].includes(key(a))||key(a).includes(n[i])))return headers[i];
+  return "";
+}
+function autoMap(headers){let m={};for(const [k,a] of Object.entries(ALIASES))m[k]=findCol(headers,a);return m}
+function autoMapForMode(headers){
+  const m=autoMap(headers);
+  if(state.sourceMode==="VPS"){
+    // VPS default: Release reason is used for termination/failure analysis; no Connecting Duration.
+    m.destination=findCol(headers,["called number","called","callee","destination number","destination","dst"]);
+    m.callDuration=findCol(headers,["duration","call duration","billsec","talk time"]);
+    
+    m.plan=findCol(headers,["route","routing plan","dialing plan","dial plan","dialplan"]);
+    m.status=findCol(headers,["Release reason","release reason","release_reason","release cause","termination reason","termination","failure cause","cause","status"]);
+  }
+  return m;
+}
+function duration(v,divisor=1000){
+  if(v==null||v==="")return 0;
+  if(typeof v==="number")return Math.max(0,v)/divisor;
+  let s=String(v).trim();if(!s)return 0;
+  // In some CDR exports, 17.810 means 17,810 milliseconds.
+  if(/^\d{1,3}(\.\d{3})+$/.test(s))s=s.replace(/\./g,"");
+  else if(/^\d{1,3}(,\d{3})+$/.test(s))s=s.replace(/,/g,"");
+  if(/^\d+(\.\d+)?$/.test(s))return Number(s)/divisor;
+  let p=s.split(":").map(Number);
+  if(p.length===3&&p.every(Number.isFinite))return p[0]*3600+p[1]*60+p[2];
+  if(p.length===2&&p.every(Number.isFinite))return p[0]*60+p[1];
+  return parseFloat(s.replace(",","."))||0;
+}
+function answeredStatus(v){
+  let s=key(v);
+  return ["answered","answer","success","connected","completed","up"].some(x=>s===x||s.includes(x));
+}
+function failure(v){
+  let raw=String(v??"").trim();
+  return raw || "Unknown";
+}
+function normalizeCallee(v){
+  let d=String(v??"").replace(/\D/g,"");
+  if(!d)return "";
+  // Client-specific leading prefix, e.g. 44 + 0878... -> 0878...
+  if(state.clientPrefix && d.startsWith(state.clientPrefix)) d=d.slice(state.clientPrefix.length);
+  // International Indonesia format, e.g. 62878... -> 0878...
+  if(d.startsWith("62")) d="0"+d.slice(2);
+  // Some files may contain +62 / 62 after client-prefix stripping.
+  if(d.startsWith("0")) return d;
+  // If the remaining number starts directly with an Indonesian mobile prefix
+  // such as 878, restore the national leading zero.
+  if(PREFIX_PROVIDER["0"+d.slice(0,3)]) return "0"+d;
+  return d;
+}
+function prefix(v){
+  let d=normalizeCallee(v);
+  return d?d.slice(0,state.prefix):"Unknown";
+}
+
+function providerFromRow(row,dest){
+  if(state.providerSource && state.providerSource!=="AUTO_PREFIX"){
+    const v=String(row[state.providerSource]??"").trim();
+    return v||"Unknown";
+  }
+  return providerFromCallee(dest);
+}
+function providerFromCallee(v){
+  let d=normalizeCallee(v);
+  return PREFIX_PROVIDER[d.slice(0,4)] || "Unknown";
+}
+function pct(a,b){return b?a/b*100:0}
+function fp(v){return (v||0).toFixed(1)+"%"}
+function fmtSec(s){
+  let n=Math.round(s||0),h=Math.floor(n/3600),m=Math.floor(n%3600/60),x=n%60;
+  return h?`${h}h ${m}m ${x}s`:`${m}m ${x}s`;
+}
+function group(rows,fn){
+  const m=new Map();rows.forEach(r=>{let k=fn(r);if(!m.has(k))m.set(k,[]);m.get(k).push(r)});
+  return [...m.entries()];
+}
+function stats(rows,fn){
+  return group(rows,fn).map(([name,rs])=>{
+    let a=rs.filter(r=>r.answered).length, f=rs.length-a;
+    let causes=group(rs.filter(r=>!r.answered),r=>r.failure).sort((x,y)=>y[1].length-x[1].length);
+    return {name,total:rs.length,answered:a,failed:f,answerRate:pct(a,rs.length),failureRate:pct(f,rs.length),share:0,topFailure:causes[0]?.[0]||"—",rows:rs};
+  }).sort((a,b)=>b.total-a.total);
+}
+function analyze(raw){
+  let rows=raw.map((x,i)=>{
+    let dest=state.map.destination?x[state.map.destination]:"";
+    let stat=state.map.status?x[state.map.status]:"";
+    let callDuration=state.map.callDuration?duration(x[state.map.callDuration]):0;
+    let connectingDuration=state.sourceMode==="VOS" && state.map.duration?duration(x[state.map.duration],state.connectDivisor):0;
+    let pdd=0;
+    let a=x.__sourceStatus==="SUCCESS" ? true : x.__sourceStatus==="FAILED" ? false : callDuration>0;
+    return {i,dest:String(dest??"").trim(),duration:connectingDuration,pdd,callDuration,
+      provider:providerFromRow(x,dest),
+      plan:state.map.plan?String(x[state.map.plan]??"").trim()||"Unknown":"Unknown",
+      status:String(stat??"").trim(),answered:a,failure:a?"Answered":failure(stat),prefix:prefix(dest),raw:x};
+  });
+  let answered=rows.filter(r=>r.answered).length,failed=rows.length-answered;
+  let failures=group(rows.filter(r=>!r.answered),r=>r.failure).map(([name,rs])=>({name,count:rs.length,percent:pct(rs.length,failed)})).sort((a,b)=>b.count-a.count);
+  let providers=stats(rows,r=>r.provider),prefixes=stats(rows,r=>r.prefix),plans=stats(rows,r=>r.plan);
+  providers.forEach(p=>p.share=pct(p.total,rows.length));
+  prefixes.forEach(p=>p.share=pct(p.total,rows.length));
+  plans.forEach(p=>p.share=pct(p.total,rows.length));
+
+  let ranked=providers.filter(x=>x.total>=Math.max(1,Math.ceil(rows.length*.01)));
+  let best=[...ranked].sort((a,b)=>b.answerRate-a.answerRate||b.total-a.total)[0];
+  let worst=[...ranked].sort((a,b)=>a.answerRate-b.answerRate||b.total-a.total)[0];
+  let worstPrefix=[...prefixes].sort((a,b)=>a.answerRate-b.answerRate||b.total-a.total)[0];
+  let dominant=failures[0], findings=[];
+  if(best)findings.push(["good","Provider terbaik",`${best.name} memiliki answer rate ${fp(best.answerRate)} dari ${best.total.toLocaleString()} call.`]);
+  if(worst)findings.push(["bad","Provider terburuk",`${worst.name} memiliki answer rate ${fp(worst.answerRate)} dan failure rate ${fp(worst.failureRate)}.`]);
+  if(worstPrefix)findings.push(["bad","Prefix perlu diperiksa",`Prefix ${worstPrefix.name} memiliki failure rate ${fp(worstPrefix.failureRate)} dari ${worstPrefix.total.toLocaleString()} call.`]);
+  if(dominant)findings.push(["warn","Failure dominan",`${dominant.name} menyumbang ${dominant.count.toLocaleString()} failed call (${fp(dominant.percent)} dari failed call).`]);
+  if(worst&&worst.failureRate>=30)findings.push(["warn","Routing perlu diperiksa",`Route ${worst.name} memiliki failure rate ${fp(worst.failureRate)}.`]);
+  let rankedPlans=plans.filter(x=>x.total>=Math.max(1,Math.ceil(rows.length*.01)));
+  let bestPlan=[...rankedPlans].sort((a,b)=>b.answerRate-a.answerRate||b.total-a.total)[0];
+  let worstPlan=[...rankedPlans].sort((a,b)=>a.answerRate-b.answerRate||b.total-a.total)[0];
+  if(bestPlan)findings.push(["good","Dialing plan terbaik",`${bestPlan.name} memiliki answer rate ${fp(bestPlan.answerRate)} dari ${bestPlan.total.toLocaleString()} call.`]);
+  if(worstPlan)findings.push(["bad","Dialing plan perlu diperiksa",`${worstPlan.name} memiliki answer rate ${fp(worstPlan.answerRate)} dan failure rate ${fp(worstPlan.failureRate)}.`]);
+  return {rows,total:rows.length,answered,failed,answerRate:pct(answered,rows.length),failureRate:pct(failed,rows.length),
+    avg:rows.length?rows.reduce((s,r)=>s+r.duration,0)/rows.length:0,
+    providers,prefixes,plans,failures,findings};
+}
+
+const SIP_TRIVIA=[
+["480","Temporarily Unavailable","Tujuan sementara tidak tersedia. Bisa karena endpoint tidak reachable, device offline, atau kondisi jaringan sementara."],
+["486","Busy Here","Endpoint tujuan sedang sibuk dan menolak menerima call baru."],
+["487","Request Terminated","Request dihentikan sebelum call selesai, misalnya karena request dibatalkan atau call flow diterminasi."],
+["403","Forbidden","Server memahami request tetapi menolaknya karena policy, permission, atau authorization."],
+["404","Not Found","User, extension, atau tujuan yang diminta tidak ditemukan pada server/domain tersebut."],
+["408","Request Timeout","Request tidak mendapatkan response yang diperlukan dalam batas waktu yang ditentukan."],
+["503","Service Unavailable","Server atau service sementara tidak tersedia atau tidak mampu melayani request."],
+["603","Decline","Tujuan mengetahui adanya call tetapi secara eksplisit menolak call."],
+["500","Server Internal Error","Terjadi error internal pada SIP server/proxy yang memproses request."]
+];
+
+function connectingAnalysis(rows){
+  // This analysis is ONLY for raw CallerHangup termination reasons.
+  const callerHangups=rows.filter(r=>key(r.failure).replace(/\s+/g,"")==="callerhangup");
+  const min=state.connectMin, max=state.connectMax;
+  const below=callerHangups.filter(r=>r.duration<min);
+  const effective=callerHangups.filter(r=>r.duration>=min && r.duration<=max);
+  const above=callerHangups.filter(r=>r.duration>max);
+  const total=callerHangups.length;
+  const avg=total?callerHangups.reduce((sum,r)=>sum+r.duration,0)/total:0;
+  return {
+    total,below,effective,above,avg,
+    belowPct:pct(below.length,total),
+    effectivePct:pct(effective.length,total),
+    abovePct:pct(above.length,total),
+    recommendation: total
+      ? (effective.length/total>=.5
+          ? `Sebagian besar CallerHangup berada pada connecting ${min}-${max} detik.`
+          : `Banyak CallerHangup terjadi di luar window ${min}-${max} detik; ring timeout/route behavior perlu diperiksa.`)
+      : "Tidak ada CallerHangup yang dapat dianalisis."
+  };
+}
+function renderConnectingAnalysis(r){
+  const c=connectingAnalysis(r.rows);
+  return `<div class="section">
+    <div class="section-title">
+      Connecting Analysis <span class="muted">Khusus CallerHangup</span>
+    </div>
+    <div class="section-body">
+      <div style="display:flex;gap:12px;align-items:end;flex-wrap:wrap;margin-bottom:14px">
+        <label style="font-size:10px;color:#667085;font-weight:700;display:flex;flex-direction:column;gap:5px">
+          Duration Divisor
+          <div style="display:flex;gap:6px">
+            <input id="connectDivisor" type="number" min="1" step="1" value="${state.connectDivisor}" style="border:1px solid #d7dde6;border-radius:7px;padding:8px;font-size:11px;width:85px">
+          </div>
+        </label>
+        <label style="font-size:10px;color:#667085;font-weight:700;display:flex;flex-direction:column;gap:5px">
+          Effective Min (seconds)
+          <div style="display:flex;gap:6px">
+            <input id="connectMin" type="number" min="0" max="3600" value="${state.connectMin}" style="border:1px solid #d7dde6;border-radius:7px;padding:8px;font-size:11px;width:80px">
+          </div>
+        </label>
+        <label style="font-size:10px;color:#667085;font-weight:700;display:flex;flex-direction:column;gap:5px">
+          Effective Max (seconds)
+          <div style="display:flex;gap:6px">
+            <input id="connectMax" type="number" min="0" max="3600" value="${state.connectMax}" style="border:1px solid #d7dde6;border-radius:7px;padding:8px;font-size:11px;width:80px">
+            <button class="ok-btn" id="connectOk">OK</button>
+          </div>
+        </label>
+        <div class="muted" style="max-width:650px;line-height:1.5">
+          Divisor <b>${state.connectDivisor}</b>: raw connecting dibagi divisor. Contoh <b>17810 / 1000 = 17.81s</b>. Format <b>17.810</b> juga dibaca sebagai <b>17,810 ms</b>. Effective window <b>${state.connectMin}-${state.connectMax}s</b>.
+        </div>
+      </div>
+      <div class="cards" style="grid-template-columns:repeat(4,1fr)">
+        <div class="card"><div class="label">Caller Hangup</div><div class="value">${c.total.toLocaleString()}</div><div class="sub">100% population</div></div>
+        <div class="card"><div class="label">Below ${state.connectMin}s</div><div class="value">${c.below.length.toLocaleString()}</div><div class="stat-pct bad">${fp(c.belowPct)}</div></div>
+        <div class="card"><div class="label">Effective ${state.connectMin}-${state.connectMax}s</div><div class="value">${c.effective.length.toLocaleString()}</div><div class="stat-pct good">${fp(c.effectivePct)}</div></div>
+        <div class="card"><div class="label">Above ${state.connectMax}s</div><div class="value">${c.above.length.toLocaleString()}</div><div class="stat-pct neutral">${fp(c.abovePct)}</div></div>
+      </div>
+      <div class="finding" style="margin-top:12px">
+        <div class="${c.belowPct>30?'warn':'good'}"><b>Connecting Insight</b>${c.recommendation}</div>
+        <div><b>Average Connecting</b>${fmtSec(c.avg)} untuk seluruh CallerHangup.</div>
+      </div>
+    </div>
+  </div>`;
+}
+function renderTrivia(){
+return `<div class="section"><div class="section-title">SIP / VoIP Trivia <span class="muted">Quick reference untuk membaca failure cause</span></div>
+<div class="section-body"><div class="trivia-grid">${SIP_TRIVIA.map(x=>`<div class="trivia-card"><div class="trivia-code">${x[0]}</div><div class="trivia-title">${x[1]}</div><div class="trivia-text">${x[2]}</div></div>`).join("")}</div>
+<div class="trivia-note">Catatan: arti termination reason di CDR dapat mengikuti mapping/vendor SBC atau PBX. Gunakan value raw CDR sebagai sumber utama dan cocokkan dengan SIP trace bila perlu.</div></div></div>`;
+}
+function renderUpload(){
+  $("topActions").innerHTML=`<button class="icon-btn" id="themeBtn" title="Night mode" onclick="toggleDark()">☾</button>`; updateThemeIcon();
+  $("app").innerHTML=`<div class="upload">
+    <div class="hero-kicker">NOC - Operations Intelligence</div>
+    <h1 class="hero-main-title"><span class="dalnet-name">DALnet<span class="system-accent">System</span></span></h1>
+    <h2 class="engine-title">VoIP CDR Auto-Analytics Engine</h2>
+    <h3 class="hero-subtitle">Faster Insights in One Click.</h3>
+
+    <div class="speed-comparison premium-comparison">
+      <div class="speed-card manual-speed">
+        <div class="speed-icon">◷</div>
+        <div class="speed-card-label">MANUAL EXCEL ANALYSIS</div>
+        <div class="speed-time">~10–20 MIN</div>
+        <div class="speed-divider"></div>
+        <div class="speed-steps">Filter <span>·</span> Sort <span>·</span> Pivot Tables</div>
+      </div>
+      <div class="speed-arrow">→</div>
+      <div class="speed-card analyzer-speed">
+        <div class="speed-icon speed-bolt">⚡</div>
+        <div class="speed-card-label">VOIP CDR ANALYZER</div>
+        <div class="speed-time">~1–2 SEC</div>
+        <div class="speed-divider"></div>
+        <div class="speed-steps">Upload <span>·</span> Analyze <span>·</span> Insights</div>
+      </div>
+    </div>
+
+    <div class="hero-benefits">
+      <div><b>◈ Accurate Analytics</b><span>Reliable & Precise</span></div>
+      <div><b>◴ Save Time</b><span>Faster Analysis</span></div>
+      <div><b>◎ Better Insights</b><span>Smarter Routing</span></div>
+      <div><b>⇩ Export Reports</b><span>PDF Ready</span></div>
+    </div>
+    <p class="hero-source-text">Choose your CDR source below. <b>VOS</b> uses one combined file, while <b>VPS</b> can combine separate Success and Failed files.</p>
+
+    <div class="source-switch" style="display:flex;gap:8px;justify-content:center;margin:18px 0">
+      <button class="btn ${state.sourceMode==="VOS"?"dark":"light"}" id="vosMode">VOS — 1 CDR File</button>
+      <button class="btn ${state.sourceMode==="VPS"?"dark":"light"}" id="vpsMode">VPS — Success + Failed</button>
+    </div>
+
+    <div id="uploadArea"></div>
+    <div id="err"></div>
+  </div>`;
+
+  const renderUploadArea=()=>{
+    const vps=state.sourceMode==="VPS";
+    $("uploadArea").innerHTML=vps?`
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div class="drop upload-slot" id="successDrop">
+          <div style="font-size:28px">✓</div><b>Success CDR</b><span class="muted">Drop atau klik</span><small>CSV / XLSX</small>
+          <div id="successName" class="muted">${state.successFile||"Belum dipilih"}</div>
+          <input id="successFileInput" type="file" accept=".csv,.xlsx" hidden>
+        </div>
+        <div class="drop upload-slot" id="failedDrop">
+          <div style="font-size:28px">×</div><b>Failed CDR</b><span class="muted">Drop atau klik</span><small>CSV / XLSX</small>
+          <div id="failedName" class="muted">${state.failedFile||"Belum dipilih"}</div>
+          <input id="failedFileInput" type="file" accept=".csv,.xlsx" hidden>
+        </div>
+      </div>
+      <button class="btn dark" id="analyzeVps" style="margin-top:14px;width:100%">OK — Combine & Analyze VPS CDR</button>
+      <div id="progress" class="progress">Menunggu 2 file...</div>
+    `:`
+      <div class="drop" id="drop">
+        <div style="font-size:30px">⇧</div><b>Drop CDR file here</b><span class="muted">atau klik untuk memilih</span><small>CSV / XLSX</small>
+        <input id="file" type="file" accept=".csv,.xlsx" hidden>
+        <div id="progress" class="progress">Membaca file...</div>
+      </div>`;
+
+    if(vps){
+      const bind=(dropId,inputId,kind)=>{
+        $(dropId).onclick=()=>$(inputId).click();
+        $(inputId).onchange=e=>{
+          const f=e.target.files[0]; if(!f)return;
+          state[kind+"File"]=f.name;
+          state[kind+"Object"]=f;
+          $(kind+"Name").textContent=f.name;
+        };
+        $(dropId).ondragover=e=>{e.preventDefault();$(dropId).classList.add("drag")};
+        $(dropId).ondragleave=()=>$(dropId).classList.remove("drag");
+        $(dropId).ondrop=e=>{
+          e.preventDefault();$(dropId).classList.remove("drag");
+          const f=e.dataTransfer.files[0];if(!f)return;
+          state[kind+"File"]=f.name;state[kind+"Object"]=f;$(kind+"Name").textContent=f.name;
+        };
+      };
+      bind("successDrop","successFileInput","success");
+      bind("failedDrop","failedFileInput","failed");
+      $("analyzeVps").onclick=loadVpsFiles;
+    }else{
+      $("drop").onclick=()=>$("file").click();
+      $("file").onchange=e=>loadFile(e.target.files[0]);
+      $("drop").ondragover=e=>{e.preventDefault();$("drop").classList.add("drag")};
+      $("drop").ondragleave=()=>$("drop").classList.remove("drag");
+      $("drop").ondrop=e=>{e.preventDefault();$("drop").classList.remove("drag");loadFile(e.dataTransfer.files[0])};
+    }
+  };
+
+  $("vosMode").onclick=()=>{state.sourceMode="VOS";state.providerSource="AUTO_PREFIX";state.successFile="";state.failedFile="";state.successObject=null;state.failedObject=null;renderUpload()};
+  $("vpsMode").onclick=()=>{state.sourceMode="VPS";state.providerSource="Tariff Description";renderUpload()};
+  renderUploadArea();
+}
+async function parseCdrFile(file){
+  if(!file)throw Error("File belum dipilih.");
+  if(file.name.toLowerCase().endsWith(".csv")){
+    return await new Promise((resolve,reject)=>Papa.parse(file,{header:true,skipEmptyLines:true,complete:r=>resolve(r.data),error:reject}));
+  }
+  let b=await file.arrayBuffer(),w=XLSX.read(b,{type:"array",cellDates:true});
+  return XLSX.utils.sheet_to_json(w.Sheets[w.SheetNames[0]],{defval:""});
+}
+async function loadFile(file){
+  if(!file)return;
+  $("progress").style.display="block";$("progress").textContent="Membaca dan menganalisis CDR...";
+  try{
+    let data=await parseCdrFile(file);
+    if(!data.length)throw Error("File tidak berisi data.");
+    state.raw=data.map(x=>({...x,__sourceStatus:"AUTO"}));
+    state.file=file.name;state.headers=[...new Set(data.flatMap(x=>Object.keys(x)))];state.map=autoMapForMode(state.headers);
+    // VOS always defaults to Callee Prefix automatically.
+    if(state.sourceMode==="VOS") state.providerSource="AUTO_PREFIX";
+    else state.providerSource=state.providerSource||"Tariff Description";
+    state.provider="All";state.prefixFilter="All";renderDashboard();
+  }catch(e){$("err").innerHTML=`<div class="error">${e.message||"Gagal membaca file."}</div>`}
+}
+async function loadVpsFiles(){
+  $("err").innerHTML="";
+  if(!state.successObject||!state.failedObject){$("err").innerHTML='<div class="error">Pilih kedua file: Success CDR dan Failed CDR.</div>';return}
+  $("progress").style.display="block";$("progress").textContent="Membaca Success + Failed CDR...";
+  try{
+    const [success,failed]=await Promise.all([parseCdrFile(state.successObject),parseCdrFile(state.failedObject)]);
+    if(!success.length&&!failed.length)throw Error("Kedua file tidak berisi data.");
+    const successRows=success.map(x=>({...x,__sourceStatus:"SUCCESS"}));
+    const failedRows=failed.map(x=>({...x,__sourceStatus:"FAILED"}));
+    state.raw=[...successRows,...failedRows];
+    state.file=`VPS: ${state.successFile} + ${state.failedFile}`;
+    state.headers=[...new Set(state.raw.flatMap(x=>Object.keys(x)))];
+    state.map=autoMapForMode(state.headers);
+    if(state.headers.some(h=>key(h)==="tariff description")) state.providerSource=state.headers.find(h=>key(h)==="tariff description");
+    state.provider="All";state.prefixFilter="All";renderDashboard();
+  }catch(e){$("err").innerHTML=`<div class="error">${e.message||"Gagal membaca file VPS."}</div>`}
+}
+
+function table(rows,cols){
+  if(!rows.length)return'<div class="empty">No data</div>';
+  return`<div class="table-wrap"><table class="table sortable-table"><thead><tr>${cols.map((c,i)=>`<th class="sortable-th" onclick="sortTable(this,${i})" title="Click to sort">${c[0]} <span class="sort-indicator">↕</span></th>`).join("")}</tr></thead><tbody>${rows.map(r=>`<tr>${cols.map(c=>`<td data-value="${escapeHtml(String(r[c[1]]??""))}">${c[2]?c[2](r):r[c[1]]??""}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`;
+}
+function sortTable(th,colIndex){
+  const tableEl=th.closest("table"),tbody=tableEl.tBodies[0],rows=[...tbody.rows];
+  const asc=th.dataset.order!=="asc";
+  tableEl.querySelectorAll(".sortable-th").forEach(h=>{h.dataset.order="";h.querySelector(".sort-indicator").textContent="↕"});
+  th.dataset.order=asc?"asc":"desc";th.querySelector(".sort-indicator").textContent=asc?"↑":"↓";
+  rows.sort((a,b)=>{
+    const av=a.cells[colIndex].dataset.value??a.cells[colIndex].textContent.trim();
+    const bv=b.cells[colIndex].dataset.value??b.cells[colIndex].textContent.trim();
+    const an=Number(av.replace(/,/g,"")),bn=Number(bv.replace(/,/g,""));
+    let cmp=Number.isFinite(an)&&Number.isFinite(bn)?an-bn:av.localeCompare(bv,undefined,{numeric:true,sensitivity:"base"});
+    return asc?cmp:-cmp;
+  });
+  rows.forEach(r=>tbody.appendChild(r));
+}
+function autoApplyProviderSource(){
+  const el=$("providerSource");
+  if(!el)return;
+  const selected=el.value||"AUTO_PREFIX";
+  if(state.providerSource!==selected){
+    state.providerSource=selected;
+  }
+}
+function renderDashboard(){
+  state.base=analyze(state.raw);
+  let filtered=state.base.rows.filter(r=>(state.provider==="All"||r.provider===state.provider)&&(state.prefixFilter==="All"||r.prefix===state.prefixFilter));
+  state.result=(state.provider==="All"&&state.prefixFilter==="All")?state.base:analyze(filtered.map(r=>r.raw));
+  let r=state.result,b=state.base;
+  $("topActions").innerHTML=`<button class="icon-btn" id="themeBtn" title="Night mode" onclick="toggleDark()">☾</button> <button class="btn light" onclick="newFile()">New File</button> <button class="btn dark" onclick="pdf()">Download PDF Report</button>`; updateThemeIcon();
+  $("app").innerHTML=`
+  <div class="head"><div><div class="muted">${state.file}</div><h1>CDR Performance Overview</h1><div class="muted">${r.total.toLocaleString()} records analyzed locally</div></div>
+  <div class="filters"><label class="muted">Provider <select id="provider"><option>All</option>${b.providers.map(x=>`<option>${x.name}</option>`).join("")}</select></label>
+  <label class="muted">Prefix <select id="prefix"><option>All</option>${b.prefixes.map(x=>`<option>${x.name}</option>`).join("")}</select></label></div></div>
+
+  <div class="section"><div class="section-title">CDR Setup <span class="muted">Set format and mapping, lalu klik OK</span></div>
+  <div class="section-body">
+  <div style="display:flex;gap:12px;align-items:end;flex-wrap:wrap;margin-bottom:12px">
+    <label style="font-size:10px;color:#667085;font-weight:700;display:flex;flex-direction:column;gap:5px">
+      Provider Source
+      <div style="display:flex;gap:6px">
+        <select id="providerSource" style="border:1px solid #d7dde6;border-radius:7px;padding:8px;font-size:11px;min-width:190px">
+          <option value="AUTO_PREFIX" ${state.providerSource==="AUTO_PREFIX"?"selected":""}>Auto — Callee Prefix</option>
+          ${state.headers.map(h=>`<option value="${escapeHtml(h)}" ${state.providerSource===h || (key(h)==="tariff description" && key(state.providerSource)==="tariff description")?"selected":""}>Column: ${escapeHtml(h)}</option>`).join("")}
+        </select>
+        <button class="ok-btn" id="providerSourceOk">OK</button>
+      </div>
+    </label>
+    <div class="muted" style="max-width:380px;line-height:1.45">
+      Auto memakai prefix Callee. Jika CDR punya kolom provider tujuan, pilih kolom tersebut.
+    </div>
+    <label style="font-size:10px;color:#667085;font-weight:700;display:flex;flex-direction:column;gap:5px">
+      Client Prefix / Leading Digits
+      <div style="display:flex;gap:6px">
+        <input id="clientPrefix" value="${state.clientPrefix}" placeholder="Contoh: 44" style="border:1px solid #d7dde6;border-radius:7px;padding:8px;font-size:11px;width:120px">
+        <button class="ok-btn" id="clientPrefixOk">OK</button>
+      </div>
+    </label>
+    <label style="font-size:10px;color:#667085;font-weight:700;display:flex;flex-direction:column;gap:5px">
+      Prefix Analysis Digits
+      <div style="display:flex;gap:6px">
+        <input id="prefixLen" type="number" min="1" max="10" value="${state.prefix}" style="border:1px solid #d7dde6;border-radius:7px;padding:8px;font-size:11px;width:70px">
+        <button class="ok-btn" id="prefixLenOk">OK</button>
+      </div>
+    </label>
+    <div class="muted" style="max-width:650px;line-height:1.45">
+      <b>440878...</b> + client prefix 44 → <b>0878...</b>. <b>62878...</b> otomatis → <b>0878...</b>. Call Duration: 0 = not answered, &gt;0 = answered. Connecting Duration: milliseconds.
+    </div>
+  </div>
+  <div class="mapping">${Object.entries(
+    state.sourceMode==="VPS"
+      ? {destination:"Callee / Destination Number",callDuration:"Call Duration",plan:"Dialing Plan / Route",status:"Termination Reason / Release Reason"}
+      : {destination:"Callee / Destination Number",callDuration:"Call Duration",duration:"Connecting Duration",plan:"Dialing Plan",status:"Termination Reason / Failure Cause"}
+  ).map(([k,l])=>`<label>${l}<select data-map="${k}"><option value="">— Not available —</option>${state.headers.map(h=>`<option value="${escapeHtml(h)}" ${state.map[k]===h?"selected":""}>${escapeHtml(h)}</option>`).join("")}</select></label>`).join("")}</div></div></div>
+
+  <div class="cards">
+    <div class="card"><div class="label">Total Calls</div><div class="value">${r.total.toLocaleString()}</div></div>
+    <div class="card status-card success-card"><div class="label">Answered / Success</div><div class="status-percent success-percent">${fp(r.answerRate)}</div><div class="value">${r.answered.toLocaleString()}</div></div>
+    <div class="card status-card failed-card"><div class="label">Failed</div><div class="status-percent failed-percent">${fp(r.failureRate)}</div><div class="value">${r.failed.toLocaleString()}</div></div>
+    <div class="card"><div class="label">Answer Rate</div><div class="value">${fp(r.answerRate)}</div></div>
+    ${state.sourceMode==="VOS"?`<div class="card"><div class="label">Avg Connecting</div><div class="value">${fmtSec(r.avg)}</div></div>`:""}
+  </div>
+
+  <div class="section"><div class="section-title">Dialing Plan Performance</div>${table(r.plans,[["Dialing Plan","name"],["Total Calls","total",x=>x.total.toLocaleString()],["Answer Rate","answerRate",x=>fp(x.answerRate)],["Failure Rate","failureRate",x=>fp(x.failureRate)],["Top Failure Cause / Termination Reason","topFailure"]])}</div>
+<div class="section" id="dialingPlanGatewaySection">
+  <div class="section-title">Dialing Plan / Gateway Performance <span class="muted">Performance by destination operator</span></div>
+  <div class="section-body">
+    <div class="prefix-operator-toolbar">
+      <label>DIALING PLAN / GATEWAY
+        <select id="dialingPlanGatewaySelect"></select>
+      </label>
+      <label>SORT BY
+        <select id="dialingPlanGatewaySort">
+          <option value="total">Total Calls</option>
+          <option value="rate">Answer Rate</option>
+          <option value="answered">Answered</option>
+          <option value="failed">Failed</option>
+        </select>
+      </label>
+    </div>
+    <div class="prefix-operator-grid" id="dialingPlanGatewaySummary"></div>
+    <div id="dialingPlanGatewayTable"></div>
+  </div>
+</div>
+
+  <div class="grid2">
+    <div class="section"><div class="section-title">Provider Tujuan Performance <span class="muted">Success vs Failure</span></div><div class="section-body"><div class="chartbox"><canvas id="providerChart"></canvas></div></div></div>
+    <div class="section"><div class="section-title">Failure Distribution</div><div class="section-body"><div class="chartbox"><canvas id="failureChart"></canvas></div></div></div>
+  </div>
+
+  <div class="section"><div class="section-title">Important Findings</div><div class="section-body"><div class="finding">${r.findings.map(x=>`<div class="${x[0]}"><b>${x[1]}</b>${x[2]}</div>`).join("")}</div></div></div>
+
+  
+
+<div class="section" id="prefixOperatorAnswerSection">
+<div class="section-title">Answer Rate by Destination Operator <span class="muted">Per client prefix</span></div>
+<div class="section-body">
+<div class="prefix-operator-toolbar">
+<label>CLIENT PREFIX<select id="clientPrefixAnswerSelect"></select></label>
+<label>SORT BY<select id="clientPrefixAnswerSort"><option value="total">Total Calls</option><option value="rate">Answer Rate</option><option value="answered">Answered</option><option value="failed">Failed</option></select></label>
+</div>
+<div class="prefix-operator-grid" id="clientPrefixAnswerSummary"></div>
+<div id="clientPrefixAnswerTable"></div>
+</div></div>  <div class="section"><div class="section-title">Provider Tujuan Analysis <span class="muted">Provider tujuan • ${state.providerSource==="AUTO_PREFIX"?"Source: Callee Number + Prefix":"Source: "+escapeHtml(state.providerSource)}</span></div>${table(r.providers,[["Provider","name"],["Total Calls","total",x=>x.total.toLocaleString()],["Share of Calls","share",x=>fp(x.share)],["Answer Rate","answerRate",x=>fp(x.answerRate)],["Failure Rate","failureRate",x=>fp(x.failureRate)],["Top Failure Cause / Termination Reason","topFailure"]])}</div>
+
+  <div class="section destination-provider-section">
+    <div class="section-title">Most Called — Provider Tujuan <span class="muted">Call distribution & success rate</span></div>
+    <div class="section-body">
+      <div class="destination-provider-grid">
+        <div class="destination-provider-highlight">
+          <div class="muted">Provider paling banyak menerima call</div>
+          <div class="destination-provider-name">${r.providers[0]?.name||"—"}</div>
+          <div class="destination-provider-meta">${r.providers[0]?r.providers[0].total.toLocaleString():"0"} calls • ${r.providers[0]?fp(r.providers[0].share):"0%"} of total • Success ${r.providers[0]?fp(r.providers[0].answerRate):"0%"}</div>
+        </div>
+        <div>${table(r.providers,[["Provider","name"],["Calls","total",x=>x.total.toLocaleString()],["Share","share",x=>fp(x.share)],["Success Rate","answerRate",x=>fp(x.answerRate)],["Failed","failed",x=>x.failed.toLocaleString()]])}</div>
+      </div>
+    </div>
+  </div>
+
+  <details class="section prefix-collapsible">
+    <summary class="section-title">Prefix Tujuan Analysis <span class="muted">Klik untuk membuka detail prefix</span></summary>
+    <div class="section-body">${table(r.prefixes,[["Prefix","name"],["Total Calls","total",x=>x.total.toLocaleString()],["Share of Calls","share",x=>fp(x.share)],["Answer Rate","answerRate",x=>fp(x.answerRate)],["Failure Rate","failureRate",x=>fp(x.failureRate)],["Top Failure Cause / Termination Reason","topFailure"]])}</div>
+  </details>
+  <div class="grid2a">
+    <div class="section"><div class="section-title">Failure Distribution <span class="muted">Raw Termination Reason dari CDR</span></div>${table(r.failures,[["Termination Reason","name"],["Count","count",x=>x.count.toLocaleString()],["Percentage","percent",x=>`<strong class="failure-pct">${fp(x.percent)}</strong>`]])}</div>
+    <div class="section"><div class="section-title">Failure Cause Summary <span class="muted">Analyst Notepad</span></div><div class="section-body">
+  <textarea id="analystNotes" class="analyst-notes" placeholder="Tulis hasil analisis di sini...
+
+Contoh:
+- CallerHangup dominan pada route X.
+- Failure meningkat pada provider Y.
+- Prefix 0878 perlu diperiksa.
+- Routing plan B memiliki answer rate rendah.
+
+Catatan ini akan ikut masuk ke PDF Report.">${escapeHtml(state.analystNotes||"")}</textarea>
+  <div class="notes-hint">✦ Catatan ini hanya disimpan di browser selama sesi analyzer dan akan ikut diekspor ke PDF.</div>
+</div></div>
+  </div>
+  ${state.sourceMode==="VOS"?renderConnectingAnalysis(r):""}
+  ${renderTrivia()}
+  <footer><span>All CDR data stays in your browser.</span><button class="btn dark" onclick="pdf()">Download PDF Report</button></footer>`;
+
+  if($("analystNotes"))$("analystNotes").oninput=e=>{state.analystNotes=e.target.value};
+  $("provider").value=state.provider;$("prefix").value=state.prefixFilter;
+  $("provider").onchange=e=>{state.provider=e.target.value;renderDashboard()};
+  $("prefix").onchange=e=>{state.prefixFilter=e.target.value;renderDashboard()};
+  if($("prefixLenOk"))$("prefixLenOk").onclick=()=>{state.prefix=Math.max(1,Math.min(10,Number($("prefixLen").value)||4));state.prefixFilter="All";renderDashboard();toast("Prefix digits applied")};
+  if($("clientPrefixOk"))$("clientPrefixOk").onclick=()=>{state.clientPrefix=$("clientPrefix").value.replace(/\D/g,"");state.provider="All";state.prefixFilter="All";renderDashboard();toast(state.clientPrefix?`Client prefix ${state.clientPrefix} applied`:"Client prefix cleared")};
+  document.querySelectorAll("[data-map]").forEach(el=>el.onchange=e=>{state.map[e.target.dataset.map]=e.target.value});
+  const mappingOk=document.createElement("button");mappingOk.className="ok-btn";mappingOk.textContent="Apply Mapping";mappingOk.style.marginTop="10px";
+  mappingOk.onclick=()=>{state.provider="All";state.prefixFilter="All";renderDashboard();toast("Column mapping applied")};
+  document.querySelector(".mapping").parentElement.appendChild(mappingOk);
+  // Provider Source is applied automatically on initial setup; OK remains available for manual changes.
+  autoApplyProviderSource();
+  if($("providerSourceOk"))$("providerSourceOk").onclick=()=>{
+    state.providerSource=$("providerSource").value||"AUTO_PREFIX";
+    state.provider="All";state.prefixFilter="All";
+    renderDashboard();
+    toast(state.providerSource==="AUTO_PREFIX"?"Provider source: Callee Prefix":`Provider source: ${state.providerSource}`);
+  };
+  if($("connectOk"))$("connectOk").onclick=()=>{
+    const divisor=Math.max(1,Number($("connectDivisor").value)||1000);
+    const min=Math.max(0,Number($("connectMin").value)||0);
+    const max=Math.max(0,Number($("connectMax").value)||0);
+    if(max<min){toast("Effective Max harus >= Effective Min");return}
+    state.connectDivisor=divisor;state.connectMin=min;state.connectMax=max;
+    renderDashboard();toast(`Connecting: /${divisor}, window ${min}-${max}s applied`);
+  };
+  drawCharts(r);
+  applyTheme();
+  updateThemeIcon();
+}
+function drawCharts(r){
+  charts.forEach(c=>c.destroy());charts=[];
+  const dark=state.dark,text=dark?"#c7d0db":"#667085",grid=dark?"#28323e":"#e5e9ef";
+  const answer=dark?"#65d69a":"#16834b",fail=dark?"#ff7b72":"#d92d20",chartBg=dark?"#151c24":"#ffffff";
+  charts.push(new Chart($("providerChart"),{type:"bar",data:{labels:r.providers.slice(0,10).map(x=>x.name),datasets:[
+    {label:"Answer Rate",data:r.providers.slice(0,10).map(x=>x.answerRate),backgroundColor:answer,borderRadius:5},
+    {label:"Failure Rate",data:r.providers.slice(0,10).map(x=>x.failureRate),backgroundColor:fail,borderRadius:5}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{color:text,font:{size:10}}},tooltip:{backgroundColor:dark?"#0b1016":"#17202b",titleColor:"#fff",bodyColor:"#fff"}},
+    scales:{x:{ticks:{color:text,font:{size:9}},grid:{color:grid}},y:{beginAtZero:true,max:100,ticks:{color:text,callback:v=>v+"%",font:{size:9}},grid:{color:grid}}}}}));
+  const failureTotal=r.failures.reduce((sum,x)=>sum+x.count,0);
+  charts.push(new Chart($("failureChart"),{
+    type:"doughnut",
+    data:{
+      labels:r.failures.map(x=>`${x.name} (${fp(failureTotal?x.count/failureTotal*100:0)})`),
+      datasets:[{
+        data:r.failures.map(x=>x.count),
+        backgroundColor:dark?["#ff7b72","#f2cc60","#79c0ff","#d2a8ff","#ffa657","#56d364","#8b949e","#a5d6ff"]:["#d92d20","#b54708","#1570ef","#7f56d9","#dc6803","#16834b","#667085","#98a2b3"],
+        borderColor:chartBg,borderWidth:3
+      }]
+    },
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      plugins:{
+        legend:{
+          position:"bottom",
+          labels:{color:text,font:{size:9},padding:10}
+        },
+        tooltip:{
+          backgroundColor:dark?"#0b1016":"#17202b",
+          titleColor:"#fff",
+          bodyColor:"#fff",
+          callbacks:{
+            label:function(ctx){
+              const count=ctx.raw||0;
+              const pct=failureTotal?count/failureTotal*100:0;
+              return ` ${count.toLocaleString()} calls (${pct.toFixed(1)}%)`;
+            }
+          }
+        }
+      }
+    }
+  }));
+}
+
+function escapeHtml(s){return String(s).replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[m]))}
+
+function toast(msg){
+  const old=document.querySelector(".toast"); if(old) old.remove();
+  const el=document.createElement("div");el.className="toast";el.textContent=msg;
+  document.body.appendChild(el);setTimeout(()=>el.remove(),1800);
+}
+function toggleDark(){
+  state.dark=!state.dark;
+  document.body.classList.toggle("dark-mode",state.dark);
+  localStorage.setItem("cdr-dark-mode",state.dark?"1":"0");
+  updateThemeIcon();
+  if(state.result && document.getElementById("providerChart")) drawCharts(state.result);
+}
+function updateThemeIcon(){
+  const b=document.getElementById("themeBtn");
+  if(b)b.textContent=state.dark?"☀":"☾";
+}
+function applyTheme(){document.body.classList.toggle("dark-mode",state.dark)}
+function newFile(){state={raw:[],headers:[],map:{},file:"",prefix:4,clientPrefix:"",provider:"All",prefixFilter:"All",result:null,base:null,dark:state.dark,connectMin:state.connectMin,connectMax:state.connectMax,connectDivisor:state.connectDivisor,providerSource:state.providerSource,sourceMode:"VPS",successFile:"",failedFile:"",analystNotes:""};renderUpload()}
+function pdf(){
+  const r=state.result;
+  if(!r)return;
+  const {jsPDF}=window.jspdf;
+  const doc=new jsPDF({orientation:"landscape",unit:"mm",format:"a4"});
+  const W=297,H=210,ML=14,MR=14;
+  let y=0,page=0;
+
+  const C={
+    ink:[31,27,48],muted:[102,112,133],purple:[105,75,190],
+    cyan:[36,154,202],line:[225,228,235],soft:[247,246,252],
+    good:[32,150,92],bad:[214,64,76],warn:[190,119,28]
+  };
+
+  function header(){
+    page++;
+    doc.setFillColor(...C.ink);doc.rect(0,0,W,18,"F");
+    doc.setTextColor(255,255,255);doc.setFont("helvetica","bold");doc.setFontSize(14);
+    doc.text("VoIP CDR Analyzer",ML,11);
+    doc.setFont("helvetica","normal");doc.setFontSize(7);
+    doc.text("CDR Performance Report",W-MR,11,{align:"right"});
+    y=25;
+  }
+  function footer(){
+    doc.setDrawColor(...C.line);doc.line(ML,H-11,W-MR,H-11);
+    doc.setTextColor(...C.muted);doc.setFontSize(7);
+    doc.text("Generated locally • CDR data stays in your browser",ML,H-6);
+    doc.text(`Page ${page}`,W-MR,H-6,{align:"right"});
+  }
+  function ensure(h=20){
+    if(y+h>H-17){footer();doc.addPage();header();}
+  }
+  function title(t,sub=""){
+    ensure(13);
+    doc.setTextColor(...C.ink);doc.setFont("helvetica","bold");doc.setFontSize(12);
+    doc.text(t,ML,y);
+    if(sub){doc.setFont("helvetica","normal");doc.setFontSize(7);doc.setTextColor(...C.muted);doc.text(sub,W-MR,y,{align:"right"});}
+    y+=6;doc.setDrawColor(...C.purple);doc.setLineWidth(.5);doc.line(ML,y,W-MR,y);y+=5;
+  }
+  function addTable(head,body,opts={}){
+    const rows=body&&body.length?body:[["No data"]];
+    const colStyles=opts.colStyles||{};
+    doc.autoTable({
+      startY:y,head:[head],body:rows,theme:"grid",
+      margin:{left:ML,right:MR,bottom:18},
+      styles:{font:"helvetica",fontSize:7,cellPadding:2.5,textColor:C.ink,lineColor:C.line,lineWidth:.15,overflow:"linebreak"},
+      headStyles:{fillColor:C.purple,textColor:[255,255,255],fontStyle:"bold",fontSize:7},
+      alternateRowStyles:{fillColor:[250,249,253]},
+      columnStyles:colStyles,
+      didDrawPage:()=>{},
+      showHead:"everyPage"
+    });
+    y=doc.lastAutoTable.finalY+7;
+  }
+  function noteBox(text){
+    if(!text)return;
+    const lines=doc.splitTextToSize(text, W-ML-MR-12);
+    const h=Math.max(18,lines.length*4.2+10);
+    ensure(h);
+    doc.setFillColor(...C.soft);doc.setDrawColor(220,216,236);doc.roundedRect(ML,y,W-ML-MR,h,3,3,"FD");
+    doc.setTextColor(...C.ink);doc.setFont("helvetica","normal");doc.setFontSize(8);
+    doc.text(lines,ML+6,y+7,{lineHeightFactor:1.35});
+    y+=h+8;
+  }
+
+  header();
+  doc.setTextColor(...C.ink);doc.setFont("helvetica","bold");doc.setFontSize(20);
+  doc.text("VoIP CDR Analyzer Report",ML,y);y+=7;
+  doc.setFont("helvetica","normal");doc.setFontSize(8);doc.setTextColor(...C.muted);
+  doc.text(`Report date: ${new Date().toLocaleString("id-ID")}`,ML,y);y+=4.5;
+  doc.text(`Source: ${state.sourceMode} — ${state.file}`,ML,y);y+=9;
+
+  title("1. Overall Summary",`${r.total.toLocaleString()} records analyzed`);
+  addTable(["Metric","Value"],[
+    ["Total Calls",r.total.toLocaleString()],
+    ["Answered",r.answered.toLocaleString()],
+    ["Failed",r.failed.toLocaleString()],
+    ["Answer Rate",fp(r.answerRate)],
+    ["Failure Rate",fp(r.failureRate)],
+    ...(state.sourceMode==="VOS"?[["Average Connecting Duration",fmtSec(r.avg)]]:[])
+  ],{colStyles:{0:{cellWidth:90},1:{cellWidth:45}}});
+
+  title("2. Dialing Plan Performance","Routing performance");
+  addTable(["Dialing Plan","Calls","Answer Rate","Failure Rate","Top Failure"],r.plans.map(x=>[x.name,x.total.toLocaleString(),fp(x.answerRate),fp(x.failureRate),x.topFailure]));
+
+  title("3. Provider Tujuan Performance","Provider tujuan");
+  addTable(["Provider","Calls","Answer Rate","Failure Rate","Top Failure"],r.providers.map(x=>[x.name,x.total.toLocaleString(),fp(x.answerRate),fp(x.failureRate),x.topFailure]));
+
+  title("4. Prefix Analysis");
+  addTable(["Prefix","Calls","Answer Rate","Failure Rate","Top Failure","Best Provider"],r.prefixes.map(x=>[x.name,x.total.toLocaleString(),fp(x.answerRate),fp(x.failureRate),x.topFailure,x.bestProvider]));
+
+  title("5. Failure Distribution","Raw Termination / Release Reason");
+  addTable(["Termination Reason","Count","Percentage"],r.failures.map(x=>[x.name,x.count.toLocaleString(),fp(x.percent)]));
+
+  title("6. Important Findings");
+  if(r.findings.length){
+    r.findings.forEach((x,i)=>{
+      const color=x[0]==="good"?C.good:x[0]==="bad"?C.bad:C.warn;
+      const lines=doc.splitTextToSize(`${i+1}. ${x[1]} — ${x[2]}`,W-ML-MR-12);
+      const h=lines.length*4.2+7;ensure(h);
+      doc.setFillColor(...color);doc.roundedRect(ML,y,2.5,h,1,1,"F");
+      doc.setTextColor(...C.ink);doc.setFont("helvetica","bold");doc.setFontSize(8);doc.text(`${i+1}. ${x[1]}`,ML+7,y+5);
+      doc.setFont("helvetica","normal");doc.setTextColor(...C.muted);doc.text(doc.splitTextToSize(x[2],W-ML-MR-20),ML+7,y+9,{lineHeightFactor:1.3});
+      y+=h+3;
+    });
+  }else{
+    doc.setTextColor(...C.muted);doc.setFontSize(8);doc.text("No automatic findings available.",ML,y);y+=8;
+  }
+
+  title("7. Analyst Notes","Failure Cause Summary / Notepad");
+  if(state.analystNotes && state.analystNotes.trim()){
+    noteBox(state.analystNotes.trim());
+  }else{
+    noteBox("No analyst notes were entered.");
+  }
+
+  if(state.sourceMode==="VOS"){
+    title("8. Connecting Analysis","CallerHangup only");
+    const c=connectingAnalysis(r.rows);
+    addTable(["Category","Calls","Percentage"],[
+      [`Below ${state.connectMin}s`,c.below.length.toLocaleString(),fp(c.belowPct)],
+      [`Effective ${state.connectMin}-${state.connectMax}s`,c.effective.length.toLocaleString(),fp(c.effectivePct)],
+      [`Above ${state.connectMax}s`,c.above.length.toLocaleString(),fp(c.abovePct)],
+      ["Average Connecting",fmtSec(c.avg),"-"]
+    ]);
+  }
+
+  footer();
+  doc.save(`voip-cdr-report-${new Date().toISOString().slice(0,10)}.pdf`);
+}
+applyTheme(); renderUpload();
+</script>
+
+<div id="cdrProgressPopup" class="cdr-progress-popup" aria-hidden="true">
+  <div class="cdr-progress-card">
+    <div id="cdrProgressRing" class="cdr-progress-ring"><span id="cdrProgressSeconds">2</span></div>
+    <div class="cdr-progress-title">Applying Settings</div>
+    <div class="cdr-progress-text" id="cdrProgressText">Please wait while your settings are applied...</div>
+    <div class="cdr-progress-track"><div id="cdrProgressFill" class="cdr-progress-fill"></div></div>
+  </div>
+</div>
+
+<script>
+(function(){
+  const popup=document.getElementById('cdrProgressPopup');
+  const fill=document.getElementById('cdrProgressFill');
+  const secs=document.getElementById('cdrProgressSeconds');
+  const ring=document.getElementById('cdrProgressRing');
+  let running=false;
+
+  function showProgress(){
+    if(running) return;
+    running=true;
+    const duration=1800;
+    const start=performance.now();
+    popup.classList.add('active');
+    popup.setAttribute('aria-hidden','false');
+
+    function tick(now){
+      const elapsed=Math.min(now-start,duration);
+      const progress=elapsed/duration;
+      const remaining=Math.max(0, Math.ceil((duration-elapsed)/1000));
+      fill.style.width=(progress*100)+'%';
+      secs.textContent=remaining;
+      ring.style.background='conic-gradient(#a78bfa '+(progress*220)+'deg,#d97706 '+(progress*300)+'deg,rgba(255,255,255,.09) '+(progress*300)+'deg)';
+      if(progress<1){
+        requestAnimationFrame(tick);
+      }else{
+        secs.textContent='✓';
+        setTimeout(()=>{
+          popup.classList.remove('active');
+          popup.setAttribute('aria-hidden','true');
+          fill.style.width='0';
+          running=false;
+        },220);
+      }
+    }
+    requestAnimationFrame(tick);
+  }
+
+  // Capture click before existing inline/event handlers. Match OK even if button contains icons/spaces.
+  document.addEventListener('click', function(e){
+    const btn=e.target.closest('button, input[type="button"], input[type="submit"], [role="button"]');
+    if(!btn) return;
+    const label=(btn.innerText || btn.value || btn.textContent || '').replace(/\s+/g,' ').trim().toLowerCase();
+    if(label==='ok' || /^ok\b/.test(label)) showProgress();
+  }, true);
+
+  // Also expose function so existing HTML handlers can call it directly if needed.
+  window.showCDRProgress=showProgress;
+})();
+</script>
+
+
+
+<script>
+(function(){
+function dig(v){return String(v??'').replace(/\D/g,'')}
+function esc(v){return typeof escapeHtml==='function'?escapeHtml(String(v)):String(v).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
+function renderPrefixOperator(){
+ const sel=document.getElementById('clientPrefixAnswerSelect'), sort=document.getElementById('clientPrefixAnswerSort'), sum=document.getElementById('clientPrefixAnswerSummary'), out=document.getElementById('clientPrefixAnswerTable');
+ if(!sel||!sort||!sum||!out||!window.state||!Array.isArray(state.raw)||!state.raw.length)return;
+ const dcol=state.map&&state.map.destination, durcol=state.map&&state.map.callDuration;
+ if(!dcol||!durcol)return;
+ const configured=(state.clientPrefix||'').toString().trim();
+ const prefixes=configured?configured.split(/[,\s;]+/).filter(Boolean):['44','55','66','770','0'];
+ const ordered=prefixes.filter((x,i,a)=>a.indexOf(x)===i).sort((a,b)=>a==='0'?-1:b==='0'?1:b.length-a.length);
+ const rows=state.raw.map(r=>{
+   const raw=dig(r[dcol]);
+   let cp='0';
+   for(const p of ordered.filter(x=>x!=='0'))if(raw.startsWith(dig(p))){cp=p;break}
+   let dest=raw.slice(cp==='0'?0:cp.length);
+   if(dest.startsWith('62'))dest='0'+dest.slice(2);
+   let op='Unknown';
+   if(typeof PREFIX_PROVIDER!=='undefined')for(let n=4;n>=1;n--){if(PREFIX_PROVIDER[dest.slice(0,n)]){op=PREFIX_PROVIDER[dest.slice(0,n)];break}}
+   const dv=String(r[durcol]??'').replace(',','.');
+   const ans=(typeof parseNum==='function'?parseNum(dv):Number(dv))>0;
+   return {cp,op,ans};
+ });
+ const detected=[...new Set(rows.map(x=>x.cp))];
+ const current=sel.value;
+ sel.innerHTML=detected.sort((a,b)=>a==='0'?-1:b==='0'?1:Number(a)-Number(b)).map(x=>'<option value="'+esc(x)+'">'+esc(x==='0'?'0 / Direct (No Prefix)':x)+'</option>').join('');
+ sel.value=detected.includes(current)?current:(detected[0]||'0');
+ const draw=()=>{
+   const data=rows.filter(x=>x.cp===sel.value), g={};
+   data.forEach(x=>{g[x.op]??={name:x.op,total:0,answered:0,failed:0};g[x.op].total++;x.ans?g[x.op].answered++:g[x.op].failed++});
+   const list=Object.values(g).map(x=>({...x,rate:x.total?x.answered/x.total*100:0}));
+   const k=sort.value;list.sort((a,b)=>(b[k]||0)-(a[k]||0));
+   const ans=data.filter(x=>x.ans).length, rate=data.length?ans/data.length*100:0;
+   sum.innerHTML='<div class="prefix-operator-card"><div class="label">CLIENT PREFIX</div><div class="value">'+esc(sel.value==='0'?'0 / Direct':sel.value)+'</div></div><div class="prefix-operator-card"><div class="label">TOTAL CALLS</div><div class="value">'+data.length.toLocaleString()+'</div></div><div class="prefix-operator-card"><div class="label">ANSWER RATE</div><div class="value">'+rate.toFixed(1)+'%</div></div>';
+   out.innerHTML='<div style="overflow:auto"><table class="prefix-operator-table"><thead><tr><th>Destination Operator</th><th>Total Calls</th><th>Answered</th><th>Failed</th><th>Answer Rate</th><th>Performance</th></tr></thead><tbody>'+list.map(x=>'<tr><td>'+esc(x.name)+'</td><td>'+x.total.toLocaleString()+'</td><td>'+x.answered.toLocaleString()+'</td><td>'+x.failed.toLocaleString()+'</td><td><strong class="prefix-rate">'+x.rate.toFixed(1)+'%</strong></td><td><div class="prefix-rate-bar"><span style="width:'+Math.min(100,x.rate)+'%"></span></div></td></tr>').join('')+'</tbody></table></div>';
+ };
+ sel.onchange=draw;sort.onchange=draw;draw();
+}
+setInterval(renderPrefixOperator,500);
+})();
+</script>
+<script>
+(function(){
+  function digits(v){return String(v??'').replace(/\D/g,'')}
+  function esc(v){return typeof escapeHtml==='function'?escapeHtml(String(v)):String(v).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
+
+  // Detect whether a number is already an Indonesian mobile number.
+  function normalizeDirect(n){
+    n=digits(n);
+    if(n.startsWith('62')) n='0'+n.slice(2);
+    if(n.startsWith('8')) n='0'+n;
+    return n;
+  }
+  function isMobile(n){
+    n=normalizeDirect(n);
+    if(!n.startsWith('08')) return false;
+    if(typeof PREFIX_PROVIDER==='undefined') return /^08\d{8,12}$/.test(n);
+    for(let len=4;len>=4;len--) if(PREFIX_PROVIDER[n.slice(0,len)]) return true;
+    return false;
+  }
+
+  // A client prefix is the leading part before the actual destination number.
+  // Example: 44 + 0878... => 44; 770 + 0857... => 770.
+  function detectClientPrefix(raw){
+    const n=digits(raw);
+    const candidates=[];
+    for(let len=1;len<=4 && len<n.length;len++){
+      const p=n.slice(0,len), rest=n.slice(len);
+      if(isMobile(rest)) candidates.push(p);
+    }
+    // If no client prefix can be proven, classify as 0 / Direct.
+    if(!candidates.length) return '0';
+    // Prefer the longest valid leading prefix.
+    return candidates.sort((a,b)=>b.length-a.length)[0];
+  }
+
+  function destinationAfterPrefix(raw,p){
+    let n=digits(raw);
+    if(p!=='0' && n.startsWith(p)) n=n.slice(p.length);
+    return normalizeDirect(n);
+  }
+
+  function operatorFor(n){
+    if(typeof PREFIX_PROVIDER==='undefined') return 'Unknown';
+    n=normalizeDirect(n);
+    return PREFIX_PROVIDER[n.slice(0,4)] || 'Unknown';
+  }
+
+  function answered(row){
+    const col=state.map && state.map.callDuration;
+    if(!col) return false;
+    const v=row[col];
+    const num=typeof parseNum==='function' ? parseNum(v) : Number(String(v??'').replace(',','.'));
+    return Number.isFinite(num) && num>0;
+  }
+
+  function render(){
+    const sel=document.getElementById('clientPrefixAnswerSelect');
+    const sort=document.getElementById('clientPrefixAnswerSort');
+    const summary=document.getElementById('clientPrefixAnswerSummary');
+    const out=document.getElementById('clientPrefixAnswerTable');
+    if(!sel||!sort||!summary||!out) return;
+    if(!window.state || !Array.isArray(state.raw) || !state.raw.length) return;
+    if(!state.map || !state.map.destination || !state.map.callDuration) return;
+
+    const rows=state.raw.map(row=>{
+      const raw=digits(row[state.map.destination]);
+      const cp=detectClientPrefix(raw);
+      const dest=destinationAfterPrefix(raw,cp);
+      return {cp,operator:operatorFor(dest),answered:answered(row)};
+    });
+
+    const prefixes=[...new Set(rows.map(x=>x.cp))]
+      .sort((a,b)=>a==='0'?-1:b==='0'?1:(Number(a)-Number(b)));
+
+    const previous=sel.value;
+    sel.innerHTML=prefixes.map(p=>`<option value="${esc(p)}">${esc(p==='0'?'0 / Direct (No Prefix)':p)}</option>`).join('');
+    if(prefixes.includes(previous)) sel.value=previous;
+
+    function draw(){
+      const chosen=sel.value;
+      const data=rows.filter(x=>x.cp===chosen);
+      const groups={};
+      data.forEach(x=>{
+        const g=groups[x.operator]||(groups[x.operator]={name:x.operator,total:0,answered:0,failed:0});
+        g.total++;
+        if(x.answered) g.answered++; else g.failed++;
+      });
+      const list=Object.values(groups).map(x=>({...x,rate:x.total?x.answered/x.total*100:0}));
+      const key=sort.value;
+      list.sort((a,b)=>(b[key]||0)-(a[key]||0));
+
+      const total=data.length, ans=data.filter(x=>x.answered).length;
+      const rate=total?ans/total*100:0;
+
+      summary.innerHTML=`
+        <div class="prefix-operator-card"><div class="label">CLIENT PREFIX</div><div class="value">${esc(chosen==='0'?'0 / Direct':chosen)}</div></div>
+        <div class="prefix-operator-card"><div class="label">TOTAL CALLS</div><div class="value">${total.toLocaleString()}</div></div>
+        <div class="prefix-operator-card"><div class="label">ANSWER RATE</div><div class="value">${rate.toFixed(1)}%</div></div>`;
+
+      if(!list.length){
+        out.innerHTML='<div class="empty">No destination operator data.</div>';
+        return;
+      }
+      out.innerHTML=`<div style="overflow:auto"><table class="prefix-operator-table">
+        <thead><tr><th>Destination Operator</th><th>Total Calls</th><th>Answered</th><th>Failed</th><th>Answer Rate</th><th>Performance</th></tr></thead>
+        <tbody>${list.map(x=>`<tr>
+          <td><strong>${esc(x.name)}</strong></td>
+          <td>${x.total.toLocaleString()}</td><td>${x.answered.toLocaleString()}</td><td>${x.failed.toLocaleString()}</td>
+          <td><strong class="prefix-rate">${x.rate.toFixed(1)}%</strong></td>
+          <td><div class="prefix-rate-bar"><span style="width:${Math.min(100,x.rate)}%"></span></div></td>
+        </tr>`).join('')}</tbody></table></div>`;
+    }
+
+    if(sel.dataset.bound!=='1'){sel.addEventListener('change',draw);sel.dataset.bound='1'}
+    if(sort.dataset.bound!=='1'){sort.addEventListener('change',draw);sort.dataset.bound='1'}
+    draw();
+  }
+
+  window.renderPrefixOperator=render;
+
+  let signature='';
+  setInterval(()=>{
+    if(!window.state) return;
+    const sig=[state.raw?.length,state.map?.destination,state.map?.callDuration,state.file].join('|');
+    if(sig!==signature){signature=sig;render();}
+  },300);
+})();
+</script>
+
+<script>
+(function(){
+  function esc(v){
+    return typeof escapeHtml==='function'?escapeHtml(String(v)):
+      String(v).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+  }
+
+  function renderDialingPlanGateway(){
+    const sel=document.getElementById('dialingPlanGatewaySelect');
+    const sort=document.getElementById('dialingPlanGatewaySort');
+    const summary=document.getElementById('dialingPlanGatewaySummary');
+    const out=document.getElementById('dialingPlanGatewayTable');
+    if(!sel||!sort||!summary||!out||!window.state) return;
+
+    const rows=state.base?.rows || [];
+    if(!rows.length){
+      sel.innerHTML='';
+      summary.innerHTML='';
+      out.innerHTML='<div class="empty">No analyzed CDR data.</div>';
+      return;
+    }
+
+    // Every analyzed row already has the normalized dialing plan and destination provider.
+    const plans=[...new Set(rows.map(r=>String(r.plan||'Unknown').trim()||'Unknown'))]
+      .sort((a,b)=>a.localeCompare(b,undefined,{numeric:true}));
+
+    const previous=sel.value;
+    sel.innerHTML=plans.map(x=>`<option value="${esc(x)}">${esc(x)}</option>`).join('');
+    if(plans.includes(previous)) sel.value=previous;
+
+    function draw(){
+      const selected=sel.value;
+      const subset=rows.filter(r=>String(r.plan||'Unknown').trim()===selected);
+      const groups={};
+
+      subset.forEach(r=>{
+        const provider=String(r.provider||'Unknown').trim()||'Unknown';
+        const g=groups[provider]||(groups[provider]={
+          name:provider,total:0,answered:0,failed:0
+        });
+        g.total++;
+        if(r.answered) g.answered++;
+        else g.failed++;
+      });
+
+      const list=Object.values(groups).map(g=>({
+        ...g,
+        rate:g.total ? g.answered/g.total*100 : 0
+      }));
+
+      const key=sort.value;
+      list.sort((a,b)=>(b[key]||0)-(a[key]||0));
+
+      const total=subset.length;
+      const answered=subset.filter(r=>r.answered).length;
+      const rate=total ? answered/total*100 : 0;
+
+      summary.innerHTML=`
+        <div class="prefix-operator-card">
+          <div class="label">DIALING PLAN / GATEWAY</div>
+          <div class="value" style="font-size:17px">${esc(selected||'—')}</div>
+        </div>
+        <div class="prefix-operator-card">
+          <div class="label">TOTAL CALLS</div>
+          <div class="value">${total.toLocaleString()}</div>
+        </div>
+        <div class="prefix-operator-card">
+          <div class="label">OVERALL ANSWER RATE</div>
+          <div class="value">${rate.toFixed(1)}%</div>
+        </div>`;
+
+      if(!list.length){
+        out.innerHTML='<div class="empty">No destination operator data for this dialing plan.</div>';
+        return;
+      }
+
+      out.innerHTML=`
+        <div style="overflow:auto">
+          <table class="prefix-operator-table">
+            <thead>
+              <tr>
+                <th>Destination Operator</th>
+                <th>Total Calls</th>
+                <th>Answered</th>
+                <th>Failed</th>
+                <th>Answer Rate</th>
+                <th>Performance</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${list.map(g=>`
+                <tr>
+                  <td><strong>${esc(g.name)}</strong></td>
+                  <td>${g.total.toLocaleString()}</td>
+                  <td>${g.answered.toLocaleString()}</td>
+                  <td>${g.failed.toLocaleString()}</td>
+                  <td><strong class="prefix-rate">${g.rate.toFixed(1)}%</strong></td>
+                  <td>
+                    <div class="prefix-rate-bar">
+                      <span style="width:${Math.min(100,g.rate)}%"></span>
+                    </div>
+                  </td>
+                </tr>`).join('')}
+            </tbody>
+          </table>
+        </div>`;
+    }
+
+    if(sel.dataset.bound!=='1'){
+      sel.addEventListener('change',draw);
+      sel.dataset.bound='1';
+    }
+    if(sort.dataset.bound!=='1'){
+      sort.addEventListener('change',draw);
+      sort.dataset.bound='1';
+    }
+    draw();
+  }
+
+  window.renderDialingPlanGateway=renderDialingPlanGateway;
+
+  let signature='';
+  setInterval(()=>{
+    if(!window.state) return;
+    const rows=state.base?.rows||[];
+    const sig=[rows.length,state.sourceMode,state.providerSource].join('|');
+    if(sig!==signature){
+      signature=sig;
+      renderDialingPlanGateway();
+    }
+  },300);
+})();
+</script>
+</body>
+</html>
