@@ -1066,8 +1066,9 @@ function stats(rows,fn){
 function parseDurationValue(v){
   if(v===null||v===undefined||v==="") return 0;
   if(typeof v==="number") return Number.isFinite(v)?v:0;
-  const t=String(v).trim();
-  if(/^\d+(?:\.\d+)?$/.test(t)) return parseFloat(t);
+  const t=String(v).trim().replace(",",".");
+  const direct=Number(t);
+  if(Number.isFinite(direct) && t!=="") return direct;
   const m=t.match(/^(?:(\d+):)?(\d{1,2}):(\d{1,2}(?:\.\d+)?)$/);
   if(m) return (Number(m[1])||0)*3600+(Number(m[2])||0)*60+Number(m[3]);
   return 0;
@@ -1077,7 +1078,8 @@ function analyze(raw){
   let rows=raw.map((x,i)=>{
     let dest=state.map.destination?x[state.map.destination]:"";
     let stat=state.map.status?x[state.map.status]:"";
-    let callDuration=state.map.callDuration?duration(x[state.map.callDuration]):0;
+    let vosDurationKey=state.map.callDuration || Object.keys(x||{}).find(k=>key(k)==="call duration"||key(k)==="duration"||key(k)==="billsec");
+    let callDuration=vosDurationKey?duration(x[vosDurationKey]):0;
     let connectingDuration=state.sourceMode==="VOS" && state.map.duration?duration(x[state.map.duration],state.connectDivisor):0;
     let pdd=0;
     let a=x.__sourceStatus==="SUCCESS" ? true : x.__sourceStatus==="FAILED" ? false : callDuration>0;
@@ -1112,24 +1114,32 @@ function analyze(raw){
     avg:rows.length?rows.reduce((s,r)=>s+r.duration,0)/rows.length:0,
     avgCallDuration:(()=>{
     const min=Number(state.durationMin??1);
-    const values=rows
-      .filter(r=>state.sourceMode!=="VPS" || r.raw?.__sourceStatus==="SUCCESS")
-      .map(r=>state.sourceMode==="VPS"
-        ? parseDurationValue(Object.entries(r.raw||{}).find(([k])=>String(k).trim().toLowerCase()==="duration")?.[1])
-        : r.callDuration)
-      .filter(v=>Number.isFinite(v)&&v>=min);
+    const values=rows.map(r=>{
+      if(state.sourceMode==="VPS"){
+        if(r.raw?.__sourceStatus!=="SUCCESS") return null;
+        return parseDurationValue(Object.entries(r.raw||{}).find(([k])=>String(k).trim().toLowerCase()==="duration")?.[1]);
+      }
+      const ent=Object.entries(r.raw||{}).find(([k])=>{
+        const n=String(k).trim().toLowerCase().replace(/[_-]+/g," ").replace(/\s+/g," ");
+        return n==="call duration"||n==="duration"||n==="billsec";
+      });
+      return parseDurationValue(ent?.[1]);
+    }).filter(v=>Number.isFinite(v)&&v>=min);
     return values.length?values.reduce((a,v)=>a+v,0)/values.length:0;
   })(),
   avgCallDurationCount:(()=>{
     const min=Number(state.durationMin??1);
-    return rows
-      .filter(r=>state.sourceMode!=="VPS" || r.raw?.__sourceStatus==="SUCCESS")
-      .filter(r=>{
-        const v=state.sourceMode==="VPS"
-          ? parseDurationValue(Object.entries(r.raw||{}).find(([k])=>String(k).trim().toLowerCase()==="duration")?.[1])
-          : r.callDuration;
-        return Number.isFinite(v)&&v>=min;
-      }).length;
+    return rows.map(r=>{
+      if(state.sourceMode==="VPS"){
+        if(r.raw?.__sourceStatus!=="SUCCESS") return null;
+        return parseDurationValue(Object.entries(r.raw||{}).find(([k])=>String(k).trim().toLowerCase()==="duration")?.[1]);
+      }
+      const ent=Object.entries(r.raw||{}).find(([k])=>{
+        const n=String(k).trim().toLowerCase().replace(/[_-]+/g," ").replace(/\s+/g," ");
+        return n==="call duration"||n==="duration"||n==="billsec";
+      });
+      return parseDurationValue(ent?.[1]);
+    }).filter(v=>Number.isFinite(v)&&v>=min).length;
   })(),
     providers,prefixes,plans,failures,findings};
 }
@@ -1438,7 +1448,7 @@ function renderDashboard(){
     <div class="card status-card success-card"><div class="label">Answered / Success</div><div class="status-percent success-percent">${fp(r.answerRate)}</div><div class="value">${r.answered.toLocaleString()}</div></div>
     <div class="card status-card failed-card"><div class="label">Failed</div><div class="status-percent failed-percent">${fp(r.failureRate)}</div><div class="value">${r.failed.toLocaleString()}</div></div>
     <div class="card"><div class="label">Answer Rate</div><div class="value">${fp(r.answerRate)}</div></div>
-    <div class="card"><div class="label">Avg Call Duration</div><div class="value">${fmtSec(r.avgCallDuration)}</div><div class="muted" style="font-size:10px;margin-top:5px">${state.sourceMode==="VPS"?"Success Call · Duration column":"Call Duration"} · ≥ ${Number(state.durationMin??1)} sec · ${r.avgCallDurationCount.toLocaleString()} calls</div></div>
+    <div class="card"><div class="label">Avg Call Duration</div><div class="value">${fmtSec(r.avgCallDuration)}</div><div class="muted" style="font-size:10px;margin-top:5px">${state.sourceMode==="VPS"?"Success Call · Duration column":"VOS · Call duration column"} · ≥ ${Number(state.durationMin??1)} sec · ${r.avgCallDurationCount.toLocaleString()} calls</div></div>
     ${state.sourceMode==="VOS"?`<div class="card"><div class="label">Avg Connecting</div><div class="value">${fmtSec(r.avg)}</div></div>`:""}
   </div>
 
